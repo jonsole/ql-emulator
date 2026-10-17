@@ -1,0 +1,10 @@
+build/
+
+# ROM images are never committed: the Sinclair QL ROMs have no distribution
+# licence, and Minerva is supplied separately (see README).
+roms/*
+!roms/.gitkeep
+
+# Fetched test suites (SingleStepTests/m68000 is about a million tests) --
+# fetched by script, never committed.
+.test-suites/
