@@ -38,6 +38,13 @@ namespace {
 const char* const FILES[] = {
     "NOP",
     "MOVE.q",
+    "LEA",
+    "PEA",
+    "MOVE.b",
+    "MOVE.w",
+    "MOVE.l",
+    "MOVEA.w",
+    "MOVEA.l",
 };
 
 /// The fast suite runs every SAMPLE_STRIDE-th test of each file: a fixed

@@ -70,6 +70,13 @@ struct Registers {
     uint16_t irc;           ///< the word after it, already fetched
 };
 
+/// An operation's size, in bytes.
+enum class Size : uint8_t {
+    Byte = 1,
+    Word = 2,
+    Long = 4,
+};
+
 class M68008 {
 public:
     explicit M68008(Bus& bus);
@@ -86,9 +93,56 @@ public:
 private:
     uint8_t read_byte(uint32_t address, FunctionCode function_code);
     uint16_t read_word(uint32_t address, FunctionCode function_code);
+    void write_byte(uint32_t address, uint8_t data, FunctionCode function_code);
+    void write_word(uint32_t address, uint16_t data, FunctionCode function_code);
+    FunctionCode data_space() const;
+    /// Pushes a long onto the active stack, high word first: PEA's order in
+    /// SingleStepTests. Not every push uses it -- MOVE.L to -(An) writes the
+    /// low word first.
+    void push_long(uint32_t value);
     /// Refills the queue: IR takes IRC, and IRC the word at PC.
     void prefetch();
+    /// Takes the extension word waiting in IRC and fetches the next in its
+    /// place, which is how the 68000 reads every word after the opcode.
+    uint16_t take_extension();
+    /// Clocks spent inside the CPU with nothing on the bus.
+    void idle(unsigned clocks) { clock_ += clocks; }
     FunctionCode program_space() const;
+
+    /// A0-A7, with A7 the stack pointer the S bit selects.
+    uint32_t& address_register(unsigned n);
+    /// The address a control mode names -- (An), (d16,An), (d8,An,Xn),
+    /// (xxx).W, (xxx).L, (d16,PC) and (d8,PC,Xn) -- taking its extension
+    /// words and spending its internal clocks as the 68000 does.
+    uint32_t control_address(unsigned mode, unsigned reg);
+    /// The base plus an index extension word's register and 8-bit displacement.
+    uint32_t indexed(uint32_t base, uint16_t extension);
+
+    /// Where an effective address leads, once its extension words are taken.
+    struct Operand {
+        enum class Kind : uint8_t { DataRegister, AddressRegister, Memory, Immediate };
+        Kind kind;
+        unsigned reg;                ///< for the register kinds
+        uint32_t address;            ///< for Memory
+        FunctionCode space;          ///< for Memory: PC-relative operands are program space
+        uint32_t immediate;          ///< for Immediate
+    };
+    /// Resolves an operand to be read (or read and then written): takes its
+    /// extension words, spends its internal clocks, and applies (An)+ and
+    /// -(An) to the register.
+    Operand resolve(unsigned mode, unsigned reg, Size size);
+    uint32_t read(const Operand& operand, Size size);
+    void write(const Operand& operand, Size size, uint32_t value);
+    uint32_t read_memory(uint32_t address, Size size, FunctionCode space);
+    void write_memory(uint32_t address, Size size, uint32_t value);
+    /// How far (An)+ and -(An) move An: the size, except that A7 moves a
+    /// byte operation by 2 to keep the stack word-aligned.
+    uint32_t step_size(unsigned reg, Size size) const;
+    /// N and Z from a result of the given size, V and C cleared, X untouched:
+    /// the condition codes of every move.
+    void set_move_flags(uint32_t value, Size size);
+
+    void move(uint16_t opcode, Size size);
 
     Bus& bus_;
     Registers regs_{};
