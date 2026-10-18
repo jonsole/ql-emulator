@@ -9,7 +9,7 @@ It is a sister project to [zx-spectrum-emulator](https://github.com/jonsole/zx-s
 
 ## Status
 
-**Planned, no code yet.** [docs/plan.md](docs/plan.md) sets out the design, the stages and the research behind them. The first stage is the 68008 core and its tests.
+**Stage 1 of 7: the 68008 core.** [docs/plan.md](docs/plan.md) sets out the design, the stages and the research behind them. The core runs its first instructions against SingleStepTests; nothing else exists yet.
 
 ## The machine
 

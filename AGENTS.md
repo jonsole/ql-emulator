@@ -6,10 +6,10 @@ this file is about how to work on it.
 
 ## The short version
 
-- **There is no code yet.** [docs/plan.md](docs/plan.md) is settled: every
+- **Stage 1 is under way: the 68008 as a standalone library.** Its tickets
+  are GitHub issues #1-#12. [docs/plan.md](docs/plan.md) is settled: every
   decision in it has been made, and a change of mind goes back through the
   same question and updates that file rather than quietly diverging from it.
-  The current stage is the first one, the 68008 as a standalone library.
 - **This is a sister project to zx-spectrum-emulator, not a fork of it.** Parts
   of that repository (the Engine, DAP and MCP plumbing, rewind's design, the
   screen and audio streams, `test_main.h`) are copied once and then left to
@@ -23,23 +23,49 @@ this file is about how to work on it.
 
 ## Build and test
 
-The build follows zx-spectrum-emulator's: `build.ps1` finds the Visual Studio
-Build Tools and imports their environment itself, and the tests are plain
-executables built from `core/tests/<name>.cpp` with the three-macro harness in
-`test_main.h` (`TEST`, `CHECK`, `CHECK_EQ`). A fast suite runs by default; the
-full CPU test set is labelled slow and run separately. Document the actual
-`build.ps1` switches here once they exist.
+```powershell
+.\scripts\fetch-m68000-tests.ps1     # once: SingleStepTests/m68000 into .test-suites\ (gitignored)
+cd core
+.\build.ps1                          # Debug, into build\Debug
+.\build.ps1 -Release                 # RelWithDebInfo, into build\RelWithDebInfo
+.\build.ps1 -Test                    # build, then the fast CTest suite (label "slow" excluded)
+.\build.ps1 -Release -Slow           # the whole SingleStepTests set
+.\build.ps1 -Target ql_tests         # the tests alone; any one target by name
+.\build.ps1 -BuildDir <dir>          # somewhere else entirely
+```
+
+`build.ps1` finds the Visual Studio Build Tools and imports their environment
+itself, as zx-spectrum-emulator's does. Run it from the PowerShell tool, not
+from bash: a fresh `powershell` started from bash refuses the script under the
+default execution policy.
+
+Each test is a plain executable built from `core/tests/<name>.cpp` with the
+three-macro harness in `test_main.h` (`TEST`, `CHECK`, `CHECK_EQ`; an
+exception escaping a test fails it), registered in `core/tests/CMakeLists.txt`
+with `ql_add_test`. The CPU library, `ql_m68008`, depends on nothing but the
+`Bus` interface in `m68008.h`.
+
+`m68000_suite` is the CPU gate. CTest runs it twice: `m68000_sample`, every
+tenth test of each file, in the fast suite, and `m68000_full`, every test,
+labelled slow. Run by hand, it takes file names (`m68000_suite.exe MOVE.b`) to
+run just those, and `--full`. The files it expects to pass are the `FILES`
+list at its top; an instruction ticket adds its own there. Until ticket #10,
+tests that take an address error are set aside and counted apart. Without the
+fetched suite it exits 77, which CTest reports as skipped.
 
 **Expected values in tests are worked out, not captured**: cycle counts from
 the 68008's documented timings, results from what the instruction is defined
 to do, addresses from the program under test. A number copied from the code's
 own output can only confirm the code agrees with itself.
 
-**The CPU gate is SingleStepTests/m68000** (MIT), fetched by a script into a
-gitignored location, never committed. It is a 68000 suite: 68008 timings come
-from splitting each word access into two byte cycles, and a few instructions
-are checked by hand against the 68008 tables in the M68000 User's Manual. The
-other SingleStepTests repository, `680x0`, has no licence and is not used.
+**The CPU gate is SingleStepTests/m68000** (MIT), fetched at a pinned commit
+into `.test-suites/`, never committed. Its `.json.bin` files are read
+directly (`m68000_file.h`); `decode.py` is never run. It is a 68000 suite:
+`m68008_timing.h` derives the 68008's bus cycles by splitting each word cycle
+into two byte cycles, even byte first, 4 clocks more, and a few instructions
+are checked by hand against the 68008 tables in the M68000 User's Manual
+(#12). The other SingleStepTests repository, `680x0`, has no licence and is
+not used.
 
 **Tests that need a Sinclair ROM skip themselves** when it is missing from
 `roms/`. The JS ROM and the IPC ROM dump are supplied by whoever runs the
@@ -68,8 +94,13 @@ tests; Minerva (GPL v2) is the one ROM that may ship.
   word four, and the ZX8301 can delay any of them. Prefetch and internal cycles
   are counted but not modelled at the pins. Don't describe timing as
   pin-accurate.
-- **Addresses are 32-bit inside, 20 bits on the bus.** The 68008 drives
-  A0-A19, so the QL's 1 MB wraps. Addresses shown to users are six hex digits.
+- **Addresses are 32-bit inside, 24 bits out of the CPU, 20 on the QL.** The
+  core drives the 68000's 24 bits, since SingleStepTests uses all 16 MB; the
+  QL's 48-pin 68008 has only A0-A19, so its 1 MB wraps, and dropping the top
+  bits is the machine's bus's job. Addresses shown to users are six hex digits.
+- **PC is the next prefetch address**, not the instruction's: with the queue
+  full it is 4 past the opcode in IR. That is how the 68000 and the suite
+  both see it.
 - **Ports differ from zx_server's** so both can run side by side: DAP 4712,
   MCP 8100, screen 8600, audio 8601; a verifying second instance uses 14712 /
   18100 / 18600 with `--no-audio`.

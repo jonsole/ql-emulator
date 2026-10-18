@@ -5,6 +5,6 @@ build/
 roms/*
 !roms/.gitkeep
 
-# Fetched test suites (SingleStepTests/m68000 is about a million tests) --
+# Fetched test suites (SingleStepTests/m68000 is 317,500 tests, about 130 MB) --
 # fetched by script, never committed.
 .test-suites/
