@@ -49,9 +49,14 @@ with `ql_add_test`. The CPU library, `ql_m68008`, depends on nothing but the
 tenth test of each file, in the fast suite, and `m68000_full`, every test,
 labelled slow. Run by hand, it takes file names (`m68000_suite.exe MOVE.b`) to
 run just those, and `--full`. The files it expects to pass are the `FILES`
-list at its top; an instruction ticket adds its own there. Until ticket #10,
-tests that take an address error are set aside and counted apart. Without the
-fetched suite it exits 77, which CTest reports as skipped.
+list at its top; an instruction ticket adds its own there. Run without file
+names, it also checks the decoding of every other file: each of those cases
+must throw `ql::NotImplemented` or pass, so a 68000 instruction mistaken for an
+illegal one fails the gate before its ticket arrives. The decoding itself is
+`m68008_decode.cpp`, where a ticket turns its `NotYet` entries into
+instructions. Until ticket #10, tests that take an address error are set aside
+and counted apart. Without the fetched suite it exits 77, which CTest reports
+as skipped.
 
 **Expected values in tests are worked out, not captured**: cycle counts from
 the 68008's documented timings, results from what the instruction is defined

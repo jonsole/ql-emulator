@@ -40,6 +40,7 @@ endif()
 # through the Bus interface in m68008.h.
 add_library(ql_m68008 STATIC
   src/m68008.cpp
+  src/m68008_decode.cpp
 )
 target_include_directories(ql_m68008 PUBLIC src)
 target_compile_options(ql_m68008 PRIVATE ${QL_WARNINGS})

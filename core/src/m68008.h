@@ -16,8 +16,17 @@
 // whose addresses span the 68000's whole 16 MB.
 
 #include <cstdint>
+#include <stdexcept>
 
 namespace ql {
+
+/// Thrown by M68008::step for an opcode the 68000 defines but the core does
+/// not run yet. Saying so beats running on in the wrong state; it goes when
+/// Stage 1's instruction tickets are done.
+class NotImplemented : public std::logic_error {
+public:
+    using std::logic_error::logic_error;
+};
 
 /// FC2-FC0: what kind of access a bus cycle is, as the 68000 family drives it.
 enum class FunctionCode : uint8_t {
@@ -88,7 +97,13 @@ public:
     uint64_t clock() const { return clock_; }
 
     /// Runs the instruction in IR to completion, leaving the next one in IR.
+    /// After an instruction run with T set, the step after it is the trace
+    /// exception alone.
     void step();
+
+    /// True after STOP, until an interrupt or reset starts the processor
+    /// again.
+    bool stopped() const { return stopped_; }
 
 private:
     uint8_t read_byte(uint32_t address, FunctionCode function_code);
@@ -142,11 +157,48 @@ private:
     /// the condition codes of every move.
     void set_move_flags(uint32_t value, Size size);
 
+    /// Runs one instruction, by the opcode's decoding.
+    void execute(uint16_t opcode);
+
+    // The instructions, one routine each, as m68008_decode.h names them. Each
+    // is handed an opcode the decoding has already found valid.
+    static Size move_size(uint16_t opcode);
     void move(uint16_t opcode, Size size);
+    void moveq(uint16_t opcode);
+    void movea(uint16_t opcode);
+    void lea(uint16_t opcode);
+    void pea(uint16_t opcode);
+    void trap(uint16_t opcode);
+    void trapv();
+    void chk(uint16_t opcode);
+    void rte();
+    void stop();
+    void reset_instruction();   ///< RESET, not a reset of the CPU
+    void move_usp(uint16_t opcode);
+    void logic_to_status(uint16_t opcode, bool to_sr);
+    void move_to_status(uint16_t opcode, bool to_sr);
+    void move_from_sr(uint16_t opcode);
+
+    /// Group 1 and 2 exception processing: the supervisor state, the
+    /// three-word frame on the supervisor stack, the vector fetch and a fresh
+    /// prefetch queue at the handler. The caller spends whatever internal
+    /// clocks come first.
+    void exception(unsigned vector, uint32_t return_address);
+    /// Fills both IR and IRC from the given address, leaving PC 4 past it.
+    void refill_queue(uint32_t address);
+    /// The exception for an instruction that cannot run -- illegal, line A
+    /// or F, or privileged in the user state -- returning to its opcode.
+    void instruction_exception(unsigned vector);
+    /// For a privileged instruction: true in the supervisor state; otherwise
+    /// takes the privilege-violation exception and returns false.
+    bool supervisor_or_trap();
 
     Bus& bus_;
     Registers regs_{};
     uint64_t clock_ = 0;
+    bool stopped_ = false;
+    /// An instruction ran with T set; its trace exception is the next step.
+    bool trace_pending_ = false;
 };
 
 } // namespace ql
