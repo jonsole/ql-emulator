@@ -187,6 +187,37 @@ private:
     void rtr();
     void link(uint16_t opcode);
     void unlk(uint16_t opcode);
+    void add_sub(uint16_t opcode);
+    void addq_subq(uint16_t opcode);
+    void addi_subi(uint16_t opcode);
+    void adda_suba(uint16_t opcode);
+    void addx_subx(uint16_t opcode);
+    /// Reads -(An) as ADDX and SUBX do: An decremented, then the operand
+    /// read, a long's low word first. `address` is set to where it was.
+    uint32_t read_predecrement_low_first(unsigned reg, Size size, uint32_t& address);
+
+    /// The size field most instructions keep in bits 7-6: 00 byte, 01 word,
+    /// 10 long.
+    static Size size_field(uint16_t opcode);
+    /// dst + src, or dst - src, at the given size, setting N, Z, V and C --
+    /// and X, unless `affects_x` is false, as for CMP. With `extend`, X is
+    /// added or subtracted too and Z can only be cleared, as ADDX, SUBX and
+    /// NEGX do, so that a multi-word result is zero only if every word is.
+    uint32_t arithmetic(uint32_t dst, uint32_t src, Size size, bool subtract, bool extend, bool affects_x);
+    /// The end of a read-modify-write: the prefetch, then the result written
+    /// back. To memory a long goes low word first, unlike MOVE's
+    /// (SingleStepTests). A long result in a register costs the internal
+    /// clocks given, which differ from one instruction to the next.
+    void finish_read_modify_write(const Operand& dest, Size size, uint32_t value, unsigned long_register_clocks);
+    void neg_negx_clr(uint16_t opcode);
+    void tst(uint16_t opcode);
+    void cmp(uint16_t opcode);
+    void cmpa(uint16_t opcode);
+    void cmpi(uint16_t opcode);
+    void cmpm(uint16_t opcode);
+    void ext(uint16_t opcode);
+    void swap(uint16_t opcode);
+    void exg(uint16_t opcode);
     /// Pops a long from the active stack, high word first.
     uint32_t pop_long();
     /// Where a JMP or JSR goes, spending its internal clocks. Unlike

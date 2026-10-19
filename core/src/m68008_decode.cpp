@@ -87,6 +87,13 @@ Instruction line_0(uint16_t opcode, unsigned mode, unsigned reg) {
     case 7:
         // MOVES, from the 68010 on.
         return Instruction::Illegal;
+    case 2:
+    case 3:
+        // SUBI and ADDI.
+        return is_if(has_size(opcode) && is_data_alterable(mode, reg), Instruction::AddiSubi);
+    case 6:
+        // CMPI.
+        return is_if(has_size(opcode) && is_data_alterable(mode, reg), Instruction::Cmpi);
     default:
         // ORI, ANDI, SUBI, ADDI, EORI and CMPI, to a data alterable operand
         // only (CMPI's PC-relative modes are the 68020's).
@@ -155,14 +162,14 @@ Instruction line_4(uint16_t opcode, unsigned mode, unsigned reg) {
     case 0x0:
         // NEGX; with size 11, MOVE from SR.
         if (!has_size(opcode)) return is_if(is_data_alterable(mode, reg), Instruction::MoveFromSr);
-        return not_yet_if(is_data_alterable(mode, reg));
+        return is_if(is_data_alterable(mode, reg), Instruction::NegNegxClr);
     case 0x2:
         // CLR; size 11 is the 68010's MOVE from CCR.
-        return not_yet_if(has_size(opcode) && is_data_alterable(mode, reg));
+        return is_if(has_size(opcode) && is_data_alterable(mode, reg), Instruction::NegNegxClr);
     case 0x4:
         // NEG; with size 11, MOVE to CCR.
         if (!has_size(opcode)) return is_if(is_data(mode, reg), Instruction::MoveToCcr);
-        return not_yet_if(is_data_alterable(mode, reg));
+        return is_if(is_data_alterable(mode, reg), Instruction::NegNegxClr);
     case 0x6:
         // NOT; with size 11, MOVE to SR.
         if (!has_size(opcode)) return is_if(is_data(mode, reg), Instruction::MoveToSr);
@@ -172,16 +179,17 @@ Instruction line_4(uint16_t opcode, unsigned mode, unsigned reg) {
         case 0x0000:
             return not_yet_if(is_data_alterable(mode, reg));   // NBCD
         case 0x0040:
-            if (mode == 0) return Instruction::NotYet;   // SWAP
+            if (mode == 0) return Instruction::Swap;
             return is_if(is_control(mode, reg), Instruction::Pea);
         }
         // EXT with Dn; otherwise MOVEM, registers to memory.
-        if (mode == 0) return Instruction::NotYet;
+        if (mode == 0) return Instruction::Ext;
         return not_yet_if((is_control(mode, reg) && is_alterable(mode, reg)) || mode == 4);
     case 0xA:
         // TST, and with size 11 TAS -- apart from ILLEGAL itself, 4AFC, which
         // TAS's encoding would make TAS #imm.
-        return not_yet_if(is_data_alterable(mode, reg));
+        if (!has_size(opcode)) return not_yet_if(is_data_alterable(mode, reg));
+        return is_if(is_data_alterable(mode, reg), Instruction::Tst);
     case 0xC:
         // MOVEM, memory to registers. 4C00-4C7F are the 68020's MULL and DIVL.
         if (!(opcode & 0x0080)) return Instruction::Illegal;
@@ -198,8 +206,9 @@ Instruction line_5(uint16_t opcode, unsigned mode, unsigned reg) {
         if (mode == 1) return Instruction::Dbcc;
         return not_yet_if(is_data_alterable(mode, reg));   // Scc; the rest are the 68020's TRAPcc
     }
+    // ADDQ and SUBQ.
     if (mode == 1 && is_byte(opcode)) return Instruction::Illegal;
-    return not_yet_if(is_alterable(mode, reg));
+    return is_if(is_alterable(mode, reg), Instruction::AddqSubq);
 }
 
 /// 1000 and 1100: OR, DIVU, DIVS and SBCD; AND, MULU, MULS, ABCD and EXG.
@@ -216,31 +225,31 @@ Instruction line_8_c(uint16_t opcode, unsigned mode, unsigned reg) {
         // EXG Dx,Dy (opmode 01000), Ax,Ay (01001) and Dx,Ay (10001). On line
         // 8 these are the 68020's PACK and UNPK.
         unsigned exg = opcode & 0x01F8;
-        return not_yet_if(and_line && (exg == 0x0140 || exg == 0x0148 || exg == 0x0188));
+        return is_if(and_line && (exg == 0x0140 || exg == 0x0148 || exg == 0x0188), Instruction::Exg);
     }
     return not_yet_if(is_memory_alterable(mode, reg));   // from Dn to memory
 }
 
 /// 1001 and 1101: SUB, SUBA and SUBX; ADD, ADDA and ADDX.
 Instruction line_9_d(uint16_t opcode, unsigned mode, unsigned reg) {
-    if (!has_size(opcode)) return not_yet_if(is_mode(mode, reg));   // SUBA, ADDA
+    if (!has_size(opcode)) return is_if(is_mode(mode, reg), Instruction::AddaSuba);
     if (opcode & 0x0100) {
-        if (mode <= 1) return Instruction::NotYet;   // SUBX, ADDX
-        return not_yet_if(is_memory_alterable(mode, reg));
+        if (mode <= 1) return Instruction::AddxSubx;
+        return is_if(is_memory_alterable(mode, reg), Instruction::AddSub);
     }
     if (mode == 1 && is_byte(opcode)) return Instruction::Illegal;
-    return not_yet_if(is_mode(mode, reg));
+    return is_if(is_mode(mode, reg), Instruction::AddSub);
 }
 
 /// 1011: CMP, CMPA, CMPM and EOR.
 Instruction line_b(uint16_t opcode, unsigned mode, unsigned reg) {
-    if (!has_size(opcode)) return not_yet_if(is_mode(mode, reg));   // CMPA
+    if (!has_size(opcode)) return is_if(is_mode(mode, reg), Instruction::Cmpa);
     if (opcode & 0x0100) {
-        if (mode == 1) return Instruction::NotYet;   // CMPM
+        if (mode == 1) return Instruction::Cmpm;
         return not_yet_if(is_data_alterable(mode, reg));   // EOR
     }
     if (mode == 1 && is_byte(opcode)) return Instruction::Illegal;
-    return not_yet_if(is_mode(mode, reg));   // CMP
+    return is_if(is_mode(mode, reg), Instruction::Cmp);
 }
 
 /// 1110: the shifts and rotates.

@@ -45,6 +45,20 @@ enum class Instruction : uint8_t {
     Rtr,
     Link,
     Unlk,
+    AddSub,         ///< ADD and SUB, to Dn or to memory
+    AddqSubq,
+    AddiSubi,
+    AddaSuba,
+    AddxSubx,
+    NegNegxClr,
+    Tst,
+    Cmp,
+    Cmpa,
+    Cmpi,
+    Cmpm,
+    Ext,
+    Swap,
+    Exg,
 };
 
 /// The instruction an opcode encodes, from a table built on first use.
