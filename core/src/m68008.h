@@ -178,6 +178,28 @@ private:
     void logic_to_status(uint16_t opcode, bool to_sr);
     void move_to_status(uint16_t opcode, bool to_sr);
     void move_from_sr(uint16_t opcode);
+    void bcc(uint16_t opcode);
+    void bsr(uint16_t opcode);
+    void dbcc(uint16_t opcode);
+    void jmp(uint16_t opcode);
+    void jsr(uint16_t opcode);
+    void rts();
+    void rtr();
+    void link(uint16_t opcode);
+    void unlk(uint16_t opcode);
+    /// Pops a long from the active stack, high word first.
+    uint32_t pop_long();
+    /// Where a JMP or JSR goes, spending its internal clocks. Unlike
+    /// control_address, it does not refill the queue as it takes extension
+    /// words: the queue is about to be filled at the target. `next` is set
+    /// to the address after the instruction, JSR's return address.
+    uint32_t jump_target(unsigned mode, unsigned reg, uint32_t& next);
+    /// Where a Bcc, BRA or BSR goes, from its byte or word displacement.
+    uint32_t branch_target(uint16_t opcode) const;
+
+    /// Whether condition cc (0-15, T F HI LS CC CS NE EQ VC VS PL MI GE LT GT
+    /// LE) holds for the current condition codes.
+    bool condition(unsigned cc) const;
 
     /// Group 1 and 2 exception processing: the supervisor state, the
     /// three-word frame on the supervisor stack, the vector fetch and a fresh

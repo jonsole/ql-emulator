@@ -30,6 +30,7 @@ endfunction()
 ql_add_test(m68000_file_tests)
 ql_add_test(m68008_timing_tests)
 ql_add_test(m68008_exception_tests)
+ql_add_test(m68008_flow_tests)
 
 # The CPU gate, registered twice: a fixed sample of each file in the fast
 # suite, and every test as a slow one. Exit code 77 means the suite has not

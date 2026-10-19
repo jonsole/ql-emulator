@@ -113,8 +113,9 @@ Instruction line_4e(uint16_t opcode, unsigned mode, unsigned reg) {
         case 1:
             return Instruction::Trap;
         case 2:
+            return Instruction::Link;
         case 3:
-            return Instruction::NotYet;   // LINK, UNLK
+            return Instruction::Unlk;
         case 4:
         case 5:
             return Instruction::MoveUsp;
@@ -124,16 +125,17 @@ Instruction line_4e(uint16_t opcode, unsigned mode, unsigned reg) {
             case 0x4E71: return Instruction::Nop;
             case 0x4E72: return Instruction::Stop;
             case 0x4E73: return Instruction::Rte;
-            case 0x4E75: return Instruction::NotYet;   // RTS
+            case 0x4E75: return Instruction::Rts;
             case 0x4E76: return Instruction::Trapv;
-            case 0x4E77: return Instruction::NotYet;   // RTR
+            case 0x4E77: return Instruction::Rtr;
             }
             return Instruction::Illegal;   // 4E74 is the 68010's RTD
         }
         return Instruction::Illegal;   // 4E78-4E7F: the 68010's MOVEC
     case 0x0080:
+        return is_if(is_control(mode, reg), Instruction::Jsr);
     case 0x00C0:
-        return not_yet_if(is_control(mode, reg));   // JSR, JMP
+        return is_if(is_control(mode, reg), Instruction::Jmp);
     }
     return Instruction::Illegal;
 }
@@ -193,7 +195,7 @@ Instruction line_4(uint16_t opcode, unsigned mode, unsigned reg) {
 /// 0101: ADDQ, SUBQ, Scc and DBcc.
 Instruction line_5(uint16_t opcode, unsigned mode, unsigned reg) {
     if (!has_size(opcode)) {
-        if (mode == 1) return Instruction::NotYet;   // DBcc
+        if (mode == 1) return Instruction::Dbcc;
         return not_yet_if(is_data_alterable(mode, reg));   // Scc; the rest are the 68020's TRAPcc
     }
     if (mode == 1 && is_byte(opcode)) return Instruction::Illegal;
@@ -259,7 +261,10 @@ Instruction classify(uint16_t opcode) {
     case 0x3: return line_move(opcode, mode, reg);
     case 0x4: return line_4(opcode, mode, reg);
     case 0x5: return line_5(opcode, mode, reg);
-    case 0x6: return Instruction::NotYet;   // Bcc, BRA, BSR: every opcode is one
+    case 0x6:
+        // Bcc and BRA (condition 0), and BSR (condition 1): every opcode is one.
+        if (((opcode >> 8) & 0xF) == 1) return Instruction::Bsr;
+        return Instruction::Bcc;
     case 0x7: return is_if(!(opcode & 0x0100), Instruction::Moveq);
     case 0x8:
     case 0xC: return line_8_c(opcode, mode, reg);

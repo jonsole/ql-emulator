@@ -36,6 +36,15 @@ enum class Instruction : uint8_t {
     MoveToCcr,
     MoveToSr,
     MoveFromSr,
+    Bcc,            ///< and BRA
+    Bsr,
+    Dbcc,
+    Jmp,
+    Jsr,
+    Rts,
+    Rtr,
+    Link,
+    Unlk,
 };
 
 /// The instruction an opcode encodes, from a table built on first use.

@@ -11,41 +11,11 @@
 
 #include "m68008.h"
 #include "test_main.h"
+#include "test_memory.h"
 
-#include <unordered_map>
+using qltest::Memory;
 
 namespace {
-
-/// 16 MB that reads as zero until written, counting the CPU's accesses.
-class Memory : public ql::Bus {
-public:
-    uint8_t read(const ql::BusCycle& cycle) override {
-        accesses++;
-        auto found = bytes_.find(cycle.address);
-        return found == bytes_.end() ? 0 : found->second;
-    }
-    void write(const ql::BusCycle& cycle, uint8_t data) override {
-        accesses++;
-        bytes_[cycle.address] = data;
-    }
-
-    void set_word(uint32_t address, uint16_t value) {
-        bytes_[address] = static_cast<uint8_t>(value >> 8);
-        bytes_[address + 1] = static_cast<uint8_t>(value);
-    }
-    uint16_t word(uint32_t address) const {
-        auto byte = [this](uint32_t a) -> uint16_t {
-            auto found = bytes_.find(a);
-            return found == bytes_.end() ? 0 : found->second;
-        };
-        return static_cast<uint16_t>(byte(address) << 8 | byte(address + 1));
-    }
-
-    int accesses = 0;
-
-private:
-    std::unordered_map<uint32_t, uint8_t> bytes_;
-};
 
 constexpr uint32_t PROGRAM = 0x000400;
 constexpr uint32_t STACK_TOP = 0x008000;
@@ -199,7 +169,7 @@ TEST(stop_stays_stopped) {
     m.cpu.step();
     m.cpu.step();
     CHECK(m.cpu.stopped());
-    CHECK_EQ(m.memory.accesses, 0);
+    CHECK_EQ(m.memory.reads + m.memory.writes, 0);
     CHECK_EQ(m.cpu.registers().pc, PROGRAM + 4);
     CHECK_EQ(m.cpu.registers().sr, uint16_t{0x0000});
     CHECK_EQ(m.cpu.clock(), uint64_t{12});

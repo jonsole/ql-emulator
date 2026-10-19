@@ -71,6 +71,15 @@ const char* const FILES[] = {
     "RESET",
     "TRAPV",
     "CHK",
+    "Bcc",
+    "BSR",
+    "DBcc",
+    "JMP",
+    "JSR",
+    "RTS",
+    "RTR",
+    "LINK",
+    "UNLINK",
 };
 
 /// The fast suite runs every SAMPLE_STRIDE-th test of each file: a fixed
