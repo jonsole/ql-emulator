@@ -160,8 +160,9 @@ private:
     /// Runs one instruction, by the opcode's decoding.
     void execute(uint16_t opcode);
 
-    // The instructions, one routine each, as m68008_decode.h names them. Each
-    // is handed an opcode the decoding has already found valid.
+    // The instructions, one routine each, as m68008_decode.h names them, in
+    // a source file per group (m68008_internal.h lists them). Each is handed
+    // an opcode the decoding has already found valid.
     static Size move_size(uint16_t opcode);
     void move(uint16_t opcode, Size size);
     void moveq(uint16_t opcode);

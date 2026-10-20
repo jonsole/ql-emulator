@@ -54,7 +54,8 @@ names, it also checks the decoding of every other file: each of those cases
 must throw `ql::NotImplemented` or pass, so a 68000 instruction mistaken for an
 illegal one fails the gate before its ticket arrives. The decoding itself is
 `m68008_decode.cpp`, where a ticket turns its `NotYet` entries into
-instructions. Until ticket #10, tests that take an address error are set aside
+instructions; the routines go in the source file for their group, which
+`m68008_internal.h` lists (a new group gets a new file). Until ticket #10, tests that take an address error are set aside
 and counted apart. Without the fetched suite it exits 77, which CTest reports
 as skipped.
 

@@ -1,0 +1,119 @@
+// The 68008 core: MOVE, MOVEA, MOVEQ, LEA and PEA.
+
+#include "m68008_internal.h"
+
+namespace ql {
+
+void M68008::move(uint16_t opcode, Size size) {
+    unsigned source_mode = (opcode >> 3) & 7;
+    unsigned dest_mode = (opcode >> 6) & 7;
+    unsigned dest_reg = (opcode >> 9) & 7;
+    Operand source = resolve(source_mode, opcode & 7, size);
+    uint32_t value = read(source, size);
+    set_move_flags(value, size);
+
+    // Where the destination's write falls against the final prefetch depends
+    // on its mode: the order below is SingleStepTests', which is the 68000's
+    // microcode.
+    switch (dest_mode) {
+    case 0:
+        write({Operand::Kind::DataRegister, dest_reg, 0, data_space(), 0}, size, value);
+        prefetch();
+        return;
+    case 2:
+    case 3: {
+        Operand dest = resolve(dest_mode, dest_reg, size);
+        write(dest, size, value);
+        prefetch();
+        return;
+    }
+    case 4: {
+        // -(An) as a destination: no internal clocks, and the prefetch comes
+        // before the write.
+        uint32_t& an = address_register(dest_reg);
+        an -= step_size(dest_reg, size);
+        uint32_t address = an;
+        prefetch();
+        if (size == Size::Long) {
+            // A long goes out low word first, from the top of the space down.
+            write_word(address + 2, static_cast<uint16_t>(value), data_space());
+            write_word(address, static_cast<uint16_t>(value >> 16), data_space());
+        } else {
+            write_memory(address, size, value);
+        }
+        return;
+    }
+    case 7:
+        if (dest_reg == 1 && source_mode >= 2 && !(source_mode == 7 && (opcode & 7) == 4)) {
+            // (xxx).L after a memory source: the write goes out with the low
+            // word of the address still waiting in IRC, and only then is it
+            // taken. After a register or an immediate, both words are taken
+            // first.
+            uint32_t high = take_extension();
+            uint32_t address = high << 16 | regs_.irc;
+            write_memory(address, size, value);
+            take_extension();
+            prefetch();
+            return;
+        }
+        break;
+    }
+    write_memory(control_address(dest_mode, dest_reg), size, value);
+    prefetch();
+}
+
+Size M68008::move_size(uint16_t opcode) {
+    // MOVE's own size field, bits 13-12: 01 byte, 11 word, 10 long.
+    switch (opcode & 0x3000) {
+    case 0x1000: return Size::Byte;
+    case 0x3000: return Size::Word;
+    }
+    return Size::Long;
+}
+
+void M68008::moveq(uint16_t opcode) {
+    // MOVEQ #d8,Dn: 0111 rrr0 dddddddd, the byte sign-extended to 32 bits.
+    // N and Z from the result, V and C cleared, X untouched.
+    uint32_t value = static_cast<uint32_t>(static_cast<int32_t>(static_cast<int8_t>(opcode & 0xFF)));
+    regs_.d[(opcode >> 9) & 7] = value;
+    set_move_flags(value, Size::Long);
+    prefetch();
+}
+
+void M68008::movea(uint16_t opcode) {
+    // MOVEA <ea>,An: a word is sign-extended to the whole register, and the
+    // condition codes are left alone.
+    Size size = move_size(opcode);
+    uint32_t value = read(resolve((opcode >> 3) & 7, opcode & 7, size), size);
+    if (size == Size::Word) value = static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(value)));
+    address_register((opcode >> 9) & 7) = value;
+    prefetch();
+}
+
+void M68008::lea(uint16_t opcode) {
+    // LEA <ea>,An: 0100 rrr1 11 mmm xxx.
+    unsigned mode = (opcode >> 3) & 7;
+    uint32_t address = control_address(mode, opcode & 7);
+    // (d8,An,Xn) and (d8,PC,Xn) spend 2 more clocks before the prefetch.
+    if (mode == 6 || (mode == 7 && (opcode & 7) == 3)) idle(2);
+    address_register((opcode >> 9) & 7) = address;
+    prefetch();
+}
+
+void M68008::pea(uint16_t opcode) {
+    // PEA <ea>: 0100 1000 01 mmm xxx.
+    unsigned mode = (opcode >> 3) & 7;
+    uint32_t address = control_address(mode, opcode & 7);
+    if (mode == 6 || (mode == 7 && (opcode & 7) == 3)) idle(2);
+    // The absolute modes push before the prefetch; the others after
+    // (SingleStepTests' bus order, the 68000's microcode).
+    if (mode == 7 && (opcode & 7) <= 1) {
+        push_long(address);
+        prefetch();
+    } else {
+        prefetch();
+        push_long(address);
+    }
+}
+
+} // namespace ql
