@@ -59,6 +59,13 @@ enum class Instruction : uint8_t {
     Ext,
     Swap,
     Exg,
+    AndOr,          ///< AND and OR, to Dn or to memory
+    Eor,
+    LogicImmediate, ///< ORI, ANDI and EORI to an operand
+    Not,
+    Bit,            ///< BTST, BCHG, BCLR and BSET, static and dynamic
+    Scc,
+    Tas,
 };
 
 /// The instruction an opcode encodes, from a table built on first use.

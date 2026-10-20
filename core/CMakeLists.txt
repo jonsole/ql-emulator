@@ -45,6 +45,7 @@ add_library(ql_m68008 STATIC
   src/m68008_system.cpp
   src/m68008_flow.cpp
   src/m68008_arithmetic.cpp
+  src/m68008_logic.cpp
 )
 target_include_directories(ql_m68008 PUBLIC src)
 target_compile_options(ql_m68008 PRIVATE ${QL_WARNINGS})

@@ -219,6 +219,13 @@ private:
     void ext(uint16_t opcode);
     void swap(uint16_t opcode);
     void exg(uint16_t opcode);
+    void and_or(uint16_t opcode);
+    void eor(uint16_t opcode);
+    void logic_immediate(uint16_t opcode);
+    void logical_not(uint16_t opcode);   ///< NOT; `not` is a C++ keyword
+    void bit_operation(uint16_t opcode);
+    void scc(uint16_t opcode);
+    void tas(uint16_t opcode);
     /// Pops a long from the active stack, high word first.
     uint32_t pop_long();
     /// Where a JMP or JSR goes, spending its internal clocks. Unlike

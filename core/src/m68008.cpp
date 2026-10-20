@@ -375,6 +375,13 @@ void M68008::execute(uint16_t opcode) {
     case Instruction::Ext: ext(opcode); return;
     case Instruction::Swap: swap(opcode); return;
     case Instruction::Exg: exg(opcode); return;
+    case Instruction::AndOr: and_or(opcode); return;
+    case Instruction::Eor: eor(opcode); return;
+    case Instruction::LogicImmediate: logic_immediate(opcode); return;
+    case Instruction::Not: logical_not(opcode); return;
+    case Instruction::Bit: bit_operation(opcode); return;
+    case Instruction::Scc: scc(opcode); return;
+    case Instruction::Tas: tas(opcode); return;
     }
 }
 
