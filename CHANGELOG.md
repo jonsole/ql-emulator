@@ -7,3 +7,4 @@
 - The core has program flow: Bcc and BRA with byte and word displacements, BSR, DBcc, JMP, JSR, RTS, RTR, LINK and UNLK, each with the 68000's prefetch behaviour for a branch taken and not taken.
 - The core has integer arithmetic: ADD, SUB, ADDA, SUBA, ADDQ, SUBQ, ADDI, SUBI, ADDX, SUBX, NEG, NEGX, CMP, CMPA, CMPI, CMPM, CLR, TST, EXT, SWAP and EXG, with the 68000's flags, including X and the extended instructions only ever clearing Z.
 - The core has logic and bit operations: AND, OR, EOR and NOT with ANDI, ORI and EORI; BTST, BCHG, BCLR and BSET in both forms, the bit numbered modulo 32 on a register and modulo 8 in memory; Scc; and TAS.
+- The core has the shifts and rotates: ASL, ASR, LSL, LSR, ROL, ROR, ROXL and ROXR, on a data register by an immediate count or a register's modulo 64, and on a word in memory by one bit, each taking the 68000's time for its count.

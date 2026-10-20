@@ -66,6 +66,7 @@ enum class Instruction : uint8_t {
     Bit,            ///< BTST, BCHG, BCLR and BSET, static and dynamic
     Scc,
     Tas,
+    Shift,          ///< the shifts and rotates, on Dn or one bit in memory
 };
 
 /// The instruction an opcode encodes, from a table built on first use.

@@ -256,10 +256,12 @@ Instruction line_b(uint16_t opcode, unsigned mode, unsigned reg) {
 
 /// 1110: the shifts and rotates.
 Instruction line_e(uint16_t opcode, unsigned mode, unsigned reg) {
-    if (has_size(opcode)) return Instruction::NotYet;   // on a data register
+    // The type -- 00 AS, 01 LS, 10 ROX, 11 RO -- is in bits 4-3 on a data
+    // register and bits 10-9 on memory.
+    if (has_size(opcode)) return Instruction::Shift;
     // On memory, one bit, word-sized. Bit 11 set is the 68020's bit fields.
     if (opcode & 0x0800) return Instruction::Illegal;
-    return not_yet_if(is_memory_alterable(mode, reg));
+    return is_if(is_memory_alterable(mode, reg), Instruction::Shift);
 }
 
 Instruction classify(uint16_t opcode) {

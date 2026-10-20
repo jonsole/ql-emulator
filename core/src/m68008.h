@@ -226,6 +226,10 @@ private:
     void bit_operation(uint16_t opcode);
     void scc(uint16_t opcode);
     void tas(uint16_t opcode);
+    void shift(uint16_t opcode);
+    /// Shifts or rotates `value` by `count` bits, of type 0 AS, 1 LS, 2 ROX
+    /// or 3 RO, setting the condition codes as the instruction does.
+    uint32_t shift_value(unsigned type, bool left, uint32_t value, unsigned count, Size size);
     /// Pops a long from the active stack, high word first.
     uint32_t pop_long();
     /// Where a JMP or JSR goes, spending its internal clocks. Unlike

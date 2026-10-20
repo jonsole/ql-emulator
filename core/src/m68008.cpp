@@ -382,6 +382,7 @@ void M68008::execute(uint16_t opcode) {
     case Instruction::Bit: bit_operation(opcode); return;
     case Instruction::Scc: scc(opcode); return;
     case Instruction::Tas: tas(opcode); return;
+    case Instruction::Shift: shift(opcode); return;
     }
 }
 

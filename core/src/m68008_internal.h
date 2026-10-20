@@ -12,6 +12,7 @@
 //   m68008_flow.cpp        branches, jumps, calls, returns, LINK, UNLK
 //   m68008_arithmetic.cpp  ADD, SUB, CMP, NEG, CLR, TST, EXT, SWAP, EXG...
 //   m68008_logic.cpp       AND, OR, EOR, NOT, the bit instructions, Scc, TAS
+//   m68008_shift.cpp       the shifts and rotates
 //
 // -- and every routine is a member of M68008, declared in m68008.h.
 
