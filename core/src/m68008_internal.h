@@ -6,7 +6,7 @@
 //   m68008.cpp             the bus, the prefetch queue, effective addresses,
 //                          exception processing, and the dispatch
 //   m68008_decode.cpp      which instruction each opcode is
-//   m68008_move.cpp        MOVE, MOVEA, MOVEQ, LEA, PEA
+//   m68008_move.cpp        MOVE, MOVEA, MOVEQ, LEA, PEA, MOVEP, MOVEM
 //   m68008_system.cpp      the supervisor state: TRAP, CHK, RTE, STOP, the
 //                          SR and USP moves...
 //   m68008_flow.cpp        branches, jumps, calls, returns, LINK, UNLK

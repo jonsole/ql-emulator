@@ -383,6 +383,8 @@ void M68008::execute(uint16_t opcode) {
     case Instruction::Scc: scc(opcode); return;
     case Instruction::Tas: tas(opcode); return;
     case Instruction::Shift: shift(opcode); return;
+    case Instruction::Movep: movep(opcode); return;
+    case Instruction::Movem: movem(opcode); return;
     }
 }
 

@@ -159,6 +159,10 @@ const char* const FILES[] = {
     "ROXR.b",
     "ROXR.w",
     "ROXR.l",
+    "MOVEP.w",
+    "MOVEP.l",
+    "MOVEM.w",
+    "MOVEM.l",
 };
 
 /// The fast suite runs every SAMPLE_STRIDE-th test of each file: a fixed

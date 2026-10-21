@@ -75,7 +75,7 @@ Instruction line_0(uint16_t opcode, unsigned mode, unsigned reg) {
     if (opcode & 0x0100) {
         // MOVEP (0000 ddd1 oo00 1aaa), or BTST, BCHG, BCLR and BSET with the
         // bit number in Dn. BTST can test an immediate; the others write.
-        if (mode == 1) return Instruction::NotYet;
+        if (mode == 1) return Instruction::Movep;
         if (is_byte(opcode)) return is_if(is_data(mode, reg), Instruction::Bit);
         return is_if(is_data_alterable(mode, reg), Instruction::Bit);
     }
@@ -185,7 +185,7 @@ Instruction line_4(uint16_t opcode, unsigned mode, unsigned reg) {
         }
         // EXT with Dn; otherwise MOVEM, registers to memory.
         if (mode == 0) return Instruction::Ext;
-        return not_yet_if((is_control(mode, reg) && is_alterable(mode, reg)) || mode == 4);
+        return is_if((is_control(mode, reg) && is_alterable(mode, reg)) || mode == 4, Instruction::Movem);
     case 0xA:
         // TST, and with size 11 TAS -- apart from ILLEGAL itself, 4AFC, which
         // TAS's encoding would make TAS #imm.
@@ -194,7 +194,7 @@ Instruction line_4(uint16_t opcode, unsigned mode, unsigned reg) {
     case 0xC:
         // MOVEM, memory to registers. 4C00-4C7F are the 68020's MULL and DIVL.
         if (!(opcode & 0x0080)) return Instruction::Illegal;
-        return not_yet_if(is_control(mode, reg) || mode == 3);
+        return is_if(is_control(mode, reg) || mode == 3, Instruction::Movem);
     case 0xE:
         return line_4e(opcode, mode, reg);
     }

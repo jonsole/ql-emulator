@@ -67,6 +67,8 @@ enum class Instruction : uint8_t {
     Scc,
     Tas,
     Shift,          ///< the shifts and rotates, on Dn or one bit in memory
+    Movep,
+    Movem,
 };
 
 /// The instruction an opcode encodes, from a table built on first use.

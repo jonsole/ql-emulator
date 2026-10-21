@@ -169,6 +169,10 @@ private:
     void movea(uint16_t opcode);
     void lea(uint16_t opcode);
     void pea(uint16_t opcode);
+    void movep(uint16_t opcode);
+    void movem(uint16_t opcode);
+    /// D0-D7 as 0-7 and A0-A7 as 8-15, MOVEM's order.
+    uint32_t& register_by_number(unsigned n);
     void trap(uint16_t opcode);
     void trapv();
     void chk(uint16_t opcode);

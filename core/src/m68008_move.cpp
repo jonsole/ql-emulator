@@ -1,4 +1,4 @@
-// The 68008 core: MOVE, MOVEA, MOVEQ, LEA and PEA.
+// The 68008 core: MOVE, MOVEA, MOVEQ, LEA, PEA, MOVEP and MOVEM.
 
 #include "m68008_internal.h"
 
@@ -114,6 +114,95 @@ void M68008::pea(uint16_t opcode) {
         prefetch();
         push_long(address);
     }
+}
+
+void M68008::movep(uint16_t opcode) {
+    // MOVEP: 0000 ddd1 oo00 1aaa, between Dn and every other byte from
+    // (d16,Ay) on -- for 8-bit peripherals on a 16-bit bus. Opmode 100 and
+    // 101 read a word and a long, 110 and 111 write them, high byte first.
+    // Then the prefetch (SingleStepTests).
+    uint32_t address = address_register(opcode & 7)
+                       + static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(take_extension())));
+    unsigned bytes = (opcode & 0x0040) ? 4 : 2;
+    uint32_t& dn = regs_.d[(opcode >> 9) & 7];
+    if (opcode & 0x0080) {
+        for (unsigned i = 0; i < bytes; i++) {
+            write_byte(address + 2 * i, static_cast<uint8_t>(dn >> (8 * (bytes - 1 - i))), data_space());
+        }
+    } else {
+        uint32_t value = 0;
+        for (unsigned i = 0; i < bytes; i++) value = value << 8 | read_byte(address + 2 * i, data_space());
+        dn = bytes == 4 ? value : (dn & 0xFFFF0000) | value;
+    }
+    prefetch();
+}
+
+uint32_t& M68008::register_by_number(unsigned n) {
+    return n < 8 ? regs_.d[n] : address_register(n - 8);
+}
+
+void M68008::movem(uint16_t opcode) {
+    // MOVEM: 0100 1d00 1s mmm xxx, then a word with a bit per register; d set
+    // for memory to registers, s for long. The mask is taken before the
+    // address's extension words.
+    bool to_registers = opcode & 0x0400;
+    Size size = (opcode & 0x0040) ? Size::Long : Size::Word;
+    uint32_t step = static_cast<uint32_t>(size);
+    uint16_t mask = take_extension();
+    unsigned mode = (opcode >> 3) & 7;
+    unsigned reg = opcode & 7;
+
+    if (!to_registers && mode == 4) {
+        // -(An): the mask runs backwards (bit 0 is A7, bit 15 D0), the
+        // registers go out from A7 down to D0, a long low word first, and An
+        // ends at the last address written. If An is in the list, the value
+        // written is An's before the instruction (SingleStepTests).
+        uint32_t& an = address_register(reg);
+        uint32_t address = an;
+        for (unsigned i = 0; i < 16; i++) {
+            if (!(mask & (1u << i))) continue;
+            uint32_t value = register_by_number(15 - i);
+            address -= step;
+            if (size == Size::Long) {
+                write_word(address + 2, static_cast<uint16_t>(value), data_space());
+                write_word(address, static_cast<uint16_t>(value >> 16), data_space());
+            } else {
+                write_word(address, static_cast<uint16_t>(value), data_space());
+            }
+        }
+        an = address;
+        prefetch();
+        return;
+    }
+
+    if (!to_registers) {
+        // A control mode, D0 up to A7.
+        uint32_t address = control_address(mode, reg);
+        for (unsigned i = 0; i < 16; i++) {
+            if (!(mask & (1u << i))) continue;
+            write_memory(address, size, register_by_number(i));
+            address += step;
+        }
+        prefetch();
+        return;
+    }
+
+    // Memory to registers, D0 up to A7, a word sign-extended to the whole
+    // register. One more word is read past the last and thrown away before
+    // the prefetch. With (An)+, An ends past the last register read, whatever
+    // was loaded into it (SingleStepTests).
+    FunctionCode space = (mode == 7 && (reg == 2 || reg == 3)) ? program_space() : data_space();
+    uint32_t address = mode == 3 ? address_register(reg) : control_address(mode, reg);
+    for (unsigned i = 0; i < 16; i++) {
+        if (!(mask & (1u << i))) continue;
+        uint32_t value = read_memory(address, size, space);
+        if (size == Size::Word) value = static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(value)));
+        register_by_number(i) = value;
+        address += step;
+    }
+    read_word(address, space);
+    if (mode == 3) address_register(reg) = address;
+    prefetch();
 }
 
 } // namespace ql
