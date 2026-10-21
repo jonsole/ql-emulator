@@ -16,17 +16,8 @@
 // whose addresses span the 68000's whole 16 MB.
 
 #include <cstdint>
-#include <stdexcept>
 
 namespace ql {
-
-/// Thrown by M68008::step for an opcode the 68000 defines but the core does
-/// not run yet. Saying so beats running on in the wrong state; it goes when
-/// Stage 1's instruction tickets are done.
-class NotImplemented : public std::logic_error {
-public:
-    using std::logic_error::logic_error;
-};
 
 /// FC2-FC0: what kind of access a bus cycle is, as the 68000 family drives it.
 enum class FunctionCode : uint8_t {
@@ -234,6 +225,14 @@ private:
     /// Shifts or rotates `value` by `count` bits, of type 0 AS, 1 LS, 2 ROX
     /// or 3 RO, setting the condition codes as the instruction does.
     uint32_t shift_value(unsigned type, bool left, uint32_t value, unsigned count, Size size);
+    void abcd_sbcd(uint16_t opcode);
+    void nbcd(uint16_t opcode);
+    /// dst + src + X, or dst - src - X, in packed BCD, setting the condition
+    /// codes as the 68000 does, the ones the manual leaves undefined
+    /// included.
+    uint8_t decimal(uint8_t dst, uint8_t src, bool subtract);
+    void mul(uint16_t opcode);
+    void div(uint16_t opcode);
     /// Pops a long from the active stack, high word first.
     uint32_t pop_long();
     /// Where a JMP or JSR goes, spending its internal clocks. Unlike

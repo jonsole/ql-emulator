@@ -48,16 +48,12 @@ with `ql_add_test`. The CPU library, `ql_m68008`, depends on nothing but the
 `m68000_suite` is the CPU gate. CTest runs it twice: `m68000_sample`, every
 tenth test of each file, in the fast suite, and `m68000_full`, every test,
 labelled slow. Run by hand, it takes file names (`m68000_suite.exe MOVE.b`) to
-run just those, and `--full`. The files it expects to pass are the `FILES`
-list at its top; an instruction ticket adds its own there. Run without file
-names, it also checks the decoding of every other file: each of those cases
-must throw `ql::NotImplemented` or pass, so a 68000 instruction mistaken for an
-illegal one fails the gate before its ticket arrives. The decoding itself is
-`m68008_decode.cpp`, where a ticket turns its `NotYet` entries into
-instructions; the routines go in the source file for their group, which
-`m68008_internal.h` lists (a new group gets a new file). Until ticket #10, tests that take an address error are set aside
-and counted apart. Without the fetched suite it exits 77, which CTest reports
-as skipped.
+run just those, and `--full`. The files it runs are the `FILES` list at its
+top, which names every file in the suite. Which instruction each opcode is
+comes from one table, `m68008_decode.cpp`; the routines are in a source file
+per group, which `m68008_internal.h` lists. Until ticket #10, tests that take
+an address error are set aside and counted apart. Without the fetched suite it
+exits 77, which CTest reports as skipped.
 
 **Expected values in tests are worked out, not captured**: cycle counts from
 the 68008's documented timings, results from what the instruction is defined

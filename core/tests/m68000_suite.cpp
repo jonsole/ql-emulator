@@ -15,12 +15,6 @@
 // group 0 exception exists (ticket #10), so the instruction tickets can pass
 // everything else first.
 //
-// Run without file names, it then checks the decoding of every other file: an
-// instruction from a later ticket must either say it is not implemented yet or
-// pass. Anything else -- above all an illegal-instruction exception the test
-// does not take -- means the core has mistaken a 68000 instruction for
-// something else.
-//
 // Exit code 77 -- reported by CTest as skipped -- means the suite has not been
 // fetched: run scripts\fetch-m68000-tests.ps1.
 
@@ -28,7 +22,6 @@
 #include "m68008.h"
 #include "m68008_timing.h"
 
-#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <stdexcept>
@@ -41,7 +34,7 @@ using namespace ql::m68000_suite;
 namespace {
 
 /// The files the core is expected to pass, named as the suite names them.
-/// Each instruction ticket adds its own.
+/// Since #8, that is every file in the suite.
 const char* const FILES[] = {
     "NOP",
     "MOVE.q",
@@ -163,6 +156,13 @@ const char* const FILES[] = {
     "MOVEP.l",
     "MOVEM.w",
     "MOVEM.l",
+    "ABCD",
+    "SBCD",
+    "NBCD",
+    "MULU",
+    "MULS",
+    "DIVU",
+    "DIVS",
 };
 
 /// The fast suite runs every SAMPLE_STRIDE-th test of each file: a fixed
@@ -254,20 +254,14 @@ std::string describe(const ByteCycle& c) {
            + " fc " + std::to_string(c.function_code) + " at clock " + std::to_string(c.clock);
 }
 
-/// What run_case returns when the core has no implementation of the opcode.
-const char* const NOT_IMPLEMENTED = "not implemented yet";
-
-/// Runs one test; returns an empty string if it passed, NOT_IMPLEMENTED if the
-/// core said it cannot run the instruction yet, or else the first difference
-/// found.
+/// Runs one test; returns an empty string if it passed, or the first
+/// difference found.
 std::string run_case(const Case& c) {
     RecordingBus bus(c.initial.ram);
     ql::M68008 cpu(bus);
     cpu.set_registers(registers_from(c.initial));
     try {
         cpu.step();
-    } catch (const ql::NotImplemented&) {
-        return NOT_IMPLEMENTED;
     } catch (const std::exception& e) {
         return std::string("threw: ") + e.what();
     }
@@ -334,8 +328,7 @@ int main(int argc, char** argv) {
             files.push_back(arg);
         }
     }
-    bool named_files = !files.empty();
-    if (!named_files) files.assign(std::begin(FILES), std::end(FILES));
+    if (files.empty()) files.assign(std::begin(FILES), std::end(FILES));
 
     std::filesystem::path suite =
         (std::filesystem::path(QL_PROJECT_ROOT) / ".test-suites" / "m68000" / "v1").lexically_normal().make_preferred();
@@ -374,53 +367,5 @@ int main(int argc, char** argv) {
                     set_aside);
         if (failed > 0) files_failed++;
     }
-    if (named_files) return files_failed == 0 ? 0 : 1;
-
-    // The decode check, over every file not listed. Only a file with a
-    // problem is named, so the output stays short while most of the
-    // instruction set is still to come.
-    std::vector<std::string> others;
-    for (const auto& entry : std::filesystem::directory_iterator(suite)) {
-        std::string file = entry.path().filename().string();
-        const std::string suffix = ".json.bin";
-        if (file.size() <= suffix.size() || file.compare(file.size() - suffix.size(), suffix.size(), suffix) != 0) {
-            continue;
-        }
-        std::string name = file.substr(0, file.size() - suffix.size());
-        if (std::find(std::begin(FILES), std::end(FILES), name) == std::end(FILES)) others.push_back(name);
-    }
-    std::sort(others.begin(), others.end());
-    size_t not_implemented = 0, passed = 0, wrong = 0;
-    for (const std::string& name : others) {
-        std::vector<Case> cases;
-        try {
-            cases = read_test_file((suite / (name + ".json.bin")).string());
-        } catch (const std::exception& e) {
-            std::printf("%s: %s\n", name.c_str(), e.what());
-            files_failed++;
-            continue;
-        }
-        size_t wrong_here = 0;
-        for (size_t i = 0; i < cases.size(); i += full ? 1 : SAMPLE_STRIDE) {
-            const Case& c = cases[i];
-            if (takes_address_error(c)) continue;
-            std::string diff = run_case(c);
-            if (diff == NOT_IMPLEMENTED) {
-                not_implemented++;
-            } else if (diff.empty()) {
-                passed++;
-            } else {
-                if (wrong_here < FAILURES_SHOWN) std::printf("  %s: %s\n", c.name.c_str(), diff.c_str());
-                wrong_here++;
-            }
-        }
-        if (wrong_here > 0) {
-            std::printf("%s: %zu decoded wrongly\n", name.c_str(), wrong_here);
-            wrong += wrong_here;
-            files_failed++;
-        }
-    }
-    std::printf("decode check, %zu other files: %zu not implemented yet, %zu passed, %zu decoded wrongly\n",
-                others.size(), not_implemented, passed, wrong);
     return files_failed == 0 ? 0 : 1;
 }

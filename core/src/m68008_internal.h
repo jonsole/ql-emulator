@@ -13,6 +13,8 @@
 //   m68008_arithmetic.cpp  ADD, SUB, CMP, NEG, CLR, TST, EXT, SWAP, EXG...
 //   m68008_logic.cpp       AND, OR, EOR, NOT, the bit instructions, Scc, TAS
 //   m68008_shift.cpp       the shifts and rotates
+//   m68008_bcd.cpp         ABCD, SBCD, NBCD
+//   m68008_multiply.cpp    MULU, MULS, DIVU, DIVS
 //
 // -- and every routine is a member of M68008, declared in m68008.h.
 
@@ -51,6 +53,7 @@ constexpr uint16_t SR_IMPLEMENTED = 0xA71F;
 /// Exception vector numbers, from the M68000 User's Manual's vector table. The
 /// vector's address is four times its number.
 constexpr unsigned VECTOR_ILLEGAL = 4;
+constexpr unsigned VECTOR_DIVIDE_BY_ZERO = 5;
 constexpr unsigned VECTOR_CHK = 6;
 constexpr unsigned VECTOR_TRAPV = 7;
 constexpr unsigned VECTOR_PRIVILEGE = 8;

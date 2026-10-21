@@ -175,4 +175,33 @@ TEST(stop_stays_stopped) {
     CHECK_EQ(m.cpu.clock(), uint64_t{12});
 }
 
+// Dividing by zero takes vector 5, returning to the next instruction, with
+// the destination left alone. SingleStepTests has no case of it. Time: 38(4/3)
+// on the 68000 (User's Manual, exception processing times), with nothing more
+// for a register operand; 7 words on an 8-bit bus add 28: 66.
+TEST(divide_by_zero_takes_vector_5) {
+    constexpr uint32_t DIVIDE_HANDLER = 0x003000;
+    const uint16_t opcodes[] = {
+        0x80C1,   // DIVU D1,D0: 1000 000 011 000 001
+        0x81C1,   // DIVS D1,D0: 1000 000 111 000 001
+    };
+    for (uint16_t opcode : opcodes) {
+        Machine m(opcode, NOP, SUPERVISOR);
+        m.memory.set_word(5 * 4, 0);
+        m.memory.set_word(5 * 4 + 2, static_cast<uint16_t>(DIVIDE_HANDLER));
+        m.memory.set_word(DIVIDE_HANDLER, NOP);
+        m.memory.set_word(DIVIDE_HANDLER + 2, NOP);
+        ql::Registers r = m.cpu.registers();
+        r.d[0] = 0x12345678;
+        r.d[1] = 0xABCD0000;   // the divisor is the low word: zero
+        m.cpu.set_registers(r);
+
+        m.cpu.step();
+
+        m.check_exception(SUPERVISOR, PROGRAM + 2, DIVIDE_HANDLER);
+        CHECK_EQ(m.cpu.registers().d[0], 0x12345678u);
+        CHECK_EQ(m.cpu.clock(), uint64_t{66});
+    }
+}
+
 RUN_TESTS()

@@ -15,8 +15,6 @@ enum class Instruction : uint8_t {
     /// Line A (1010) and line F (1111), each with its own vector.
     LineA,
     LineF,
-    /// A 68000 instruction that a later Stage 1 ticket implements.
-    NotYet,
 
     Nop,
     Moveq,
@@ -69,6 +67,10 @@ enum class Instruction : uint8_t {
     Shift,          ///< the shifts and rotates, on Dn or one bit in memory
     Movep,
     Movem,
+    AbcdSbcd,
+    Nbcd,
+    Mul,            ///< MULU and MULS
+    Div,            ///< DIVU and DIVS
 };
 
 /// The instruction an opcode encodes, from a table built on first use.

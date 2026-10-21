@@ -50,12 +50,6 @@ bool is_byte(uint16_t opcode) {
     return (opcode & 0x00C0) == 0;
 }
 
-/// An instruction the 68000 defines, if the condition holds; illegal if not.
-/// For the instructions still to come.
-Instruction not_yet_if(bool valid) {
-    return valid ? Instruction::NotYet : Instruction::Illegal;
-}
-
 Instruction is_if(bool valid, Instruction instruction) {
     return valid ? instruction : Instruction::Illegal;
 }
@@ -178,7 +172,7 @@ Instruction line_4(uint16_t opcode, unsigned mode, unsigned reg) {
     case 0x8:
         switch (opcode & 0x00C0) {
         case 0x0000:
-            return not_yet_if(is_data_alterable(mode, reg));   // NBCD
+            return is_if(is_data_alterable(mode, reg), Instruction::Nbcd);
         case 0x0040:
             if (mode == 0) return Instruction::Swap;
             return is_if(is_control(mode, reg), Instruction::Pea);
@@ -219,11 +213,12 @@ Instruction line_8_c(uint16_t opcode, unsigned mode, unsigned reg) {
     switch (opcode & 0x01C0) {
     case 0x00C0:
     case 0x01C0:
-        return not_yet_if(is_data(mode, reg));   // DIVU, DIVS, MULU, MULS
+        // MULU and MULS on line C, DIVU and DIVS on line 8.
+        return is_if(is_data(mode, reg), and_line ? Instruction::Mul : Instruction::Div);
     }
     if (!(opcode & 0x0100)) return is_if(is_data(mode, reg), Instruction::AndOr);   // to Dn
     if (mode <= 1) {
-        if (is_byte(opcode)) return Instruction::NotYet;   // SBCD, ABCD
+        if (is_byte(opcode)) return Instruction::AbcdSbcd;
         // EXG Dx,Dy (opmode 01000), Ax,Ay (01001) and Dx,Ay (10001). On line
         // 8 these are the 68020's PACK and UNPK.
         unsigned exg = opcode & 0x01F8;

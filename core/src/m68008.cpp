@@ -333,7 +333,6 @@ void M68008::execute(uint16_t opcode) {
     case Instruction::Illegal: instruction_exception(VECTOR_ILLEGAL); return;
     case Instruction::LineA: instruction_exception(VECTOR_LINE_A); return;
     case Instruction::LineF: instruction_exception(VECTOR_LINE_F); return;
-    case Instruction::NotYet: throw NotImplemented("M68008::step: opcode not implemented yet");
     case Instruction::Nop: prefetch(); return;
     case Instruction::Moveq: moveq(opcode); return;
     case Instruction::Move: move(opcode, move_size(opcode)); return;
@@ -385,6 +384,10 @@ void M68008::execute(uint16_t opcode) {
     case Instruction::Shift: shift(opcode); return;
     case Instruction::Movep: movep(opcode); return;
     case Instruction::Movem: movem(opcode); return;
+    case Instruction::AbcdSbcd: abcd_sbcd(opcode); return;
+    case Instruction::Nbcd: nbcd(opcode); return;
+    case Instruction::Mul: mul(opcode); return;
+    case Instruction::Div: div(opcode); return;
     }
 }
 
