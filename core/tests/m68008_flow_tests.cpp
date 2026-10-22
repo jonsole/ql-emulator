@@ -24,9 +24,9 @@ constexpr uint16_t NOP = 0x4E71;
 // branch is not taken, and the next instruction is the NOP after the
 // displacement word. The high word of D0 is untouched.
 //
-// Time: 14(3/0) on the 68000 (User's Manual, DBcc, "cc false, count
-// expired"). Three words read on an 8-bit bus are six byte cycles, 4 clocks
-// more for each word: 14 + 12 = 26.
+// Time: 26(6/0) on the 68008 (User's Manual, Table 7-10, DBcc, CC false,
+// not taken) -- the 68000's 14(3/0), Table 8-9, with its three words read
+// as six byte cycles, 12 more.
 TEST(dbcc_falls_through_when_the_count_runs_out) {
     Memory memory;
     memory.set_word(PROGRAM, 0x51C8);

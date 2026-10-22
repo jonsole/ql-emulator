@@ -23,9 +23,9 @@ constexpr uint32_t ILLEGAL_HANDLER = 0x001000;
 constexpr uint32_t TRACE_HANDLER = 0x002000;
 constexpr uint16_t NOP = 0x4E71;
 
-/// A 68000's exception, group 1 or 2: 34 clocks, 4 words read and 3 written
-/// (User's Manual, exception processing times, 34(4/3)). On the 68008 each of
-/// those 7 words is two byte cycles, 4 clocks more apiece: 34 + 28.
+/// An illegal instruction's or a trace's exception on the 68008: 62(8/6), the
+/// User's Manual's Table 7-15. (The 68000's 34(4/3), Table 8-14, with each of
+/// its 7 words made two byte cycles, gives the same: 34 + 28.)
 constexpr uint64_t EXCEPTION_CLOCKS = 62;
 
 /// A machine with the illegal-instruction (4) and trace (9) vectors set, NOPs
@@ -142,9 +142,8 @@ TEST(an_instruction_run_with_t_set_is_followed_by_a_trace) {
     CHECK_EQ(m.cpu.clock(), 8 + EXCEPTION_CLOCKS + 8);
 }
 
-// An illegal instruction is not traced: it never ran (M68000 Programmer's
-// Reference Manual, 6.3.8, Tracing). After its exception the handler's first
-// instruction runs.
+// An illegal instruction is not traced: it never ran (M68000 User's Manual,
+// 6.3.8, Tracing). After its exception the handler's first instruction runs.
 TEST(an_illegal_instruction_is_not_traced) {
     Machine m(0x4AFC, NOP, 0xA700);
     m.cpu.step();
@@ -176,9 +175,9 @@ TEST(stop_stays_stopped) {
 }
 
 // Dividing by zero takes vector 5, returning to the next instruction, with
-// the destination left alone. SingleStepTests has no case of it. Time: 38(4/3)
-// on the 68000 (User's Manual, exception processing times), with nothing more
-// for a register operand; 7 words on an 8-bit bus add 28: 66.
+// the destination left alone. SingleStepTests has no case of it. Time: 66(8/6)
+// on the 68008 (User's Manual, Table 7-15), with nothing more for a register
+// operand -- the 68000's 38(4/3) with 7 words on an 8-bit bus, 28 more.
 TEST(divide_by_zero_takes_vector_5) {
     constexpr uint32_t DIVIDE_HANDLER = 0x003000;
     const uint16_t opcodes[] = {

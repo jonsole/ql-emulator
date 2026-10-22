@@ -306,7 +306,7 @@ void M68008::instruction_exception(unsigned vector) {
     // Illegal instructions, lines A and F, and privilege violations: 4
     // internal clocks before the frame, and the return address is the
     // offending opcode's own, 4 behind PC. The instruction never ran, so it
-    // is not traced (Programmer's Reference Manual, 6.3.8).
+    // is not traced (User's Manual, 6.3.8).
     trace_pending_ = false;
     idle(4);
     exception(vector, regs_.pc - 4);
@@ -332,11 +332,11 @@ void M68008::take_interrupt() {
     if (level == 7) level_7_taken_ = true;
     uint32_t return_address = stopped_ ? regs_.pc : regs_.pc - 4;
 
-    // 44(5/3) clocks on the 68000 (User's Manual 8.4): the frame, the vector
-    // and the queue as for any exception, the acknowledge cycle -- a byte
-    // read in the interrupt acknowledge space, with the level on A1-A3 and
-    // every other line high -- and 12 internal clocks, 2 of them inside
-    // exception(). The manual gives the total, not the order inside it, and
+    // 44(5/3) clocks on the 68000 (User's Manual, Table 8-14), 72(9/6) on the
+    // 68008 (Table 7-15): the frame, the vector and the queue as for any
+    // exception, the acknowledge cycle -- a byte read in the interrupt
+    // acknowledge space, with the level on A1-A3 and every other line high
+    // -- and 12 internal clocks, 2 of them inside exception(). The manual gives the total, not the order inside it, and
     // nothing here observes the order; the frame and the time are what the
     // tests check.
     idle(6);
@@ -386,7 +386,12 @@ void M68008::address_error_exception(uint32_t address, FunctionCode function_cod
 
     // 8 internal clocks, then the seven words of the group 0 frame: PC low
     // first, SR, PC high, IR, the fault address low, the status word, the
-    // fault address high (SingleStepTests' order).
+    // fault address high (SingleStepTests' order). From the faulting access
+    // to the handler's first word that is 102 clocks with 8 reads and 14
+    // writes; the User's Manual's Table 7-15 gives 94(8/14). The 8 clocks are
+    // the same 8 by which its 68000 figure (50(4/7), Table 8-14) falls short
+    // of what SingleStepTests records, so they are where the manual starts
+    // counting; the core follows the recorded 68000.
     idle(8);
     regs_.ssp -= 14;
     write_word(regs_.ssp + 12, static_cast<uint16_t>(return_address), FunctionCode::SupervisorData);

@@ -10,13 +10,13 @@
 //          cleared, the mask raised to the level); the acknowledge cycle with
 //          the level on A1-A3; autovectors 25-31 for levels 1-7.
 //   6.2    Exception processing: the three-word group 1 and 2 frame.
-//   8.4    Exception processing times: Interrupt 44(5/3), the acknowledge
-//          cycle taken as 4 clocks.
+//   Table 7-15  Exception processing times on the 68008: Interrupt 72(9/6),
+//          the acknowledge cycle taken as 4 clocks.
 //
-// The 68000's 44 clocks become the 68008's by counting each word moved as two
-// byte cycles of 4 clocks. The acknowledge reads a byte either way; the vector
-// (2 words), the prefetch (2) and the frame (3) are 7 words: 44 + 28 = 72, and
-// 9 reads and 6 writes on the 8-bit bus.
+// The 68000's 44(5/3) (Table 8-14) gives the same by counting each word moved
+// as two byte cycles of 4 clocks: the acknowledge reads a byte either way;
+// the vector (2 words), the prefetch (2) and the frame (3) are 7 words, 28
+// more, with 9 reads and 6 writes on the 8-bit bus.
 
 #include "m68008.h"
 #include "test_main.h"
@@ -92,8 +92,8 @@ struct Machine {
 // 6.3.2: a level above the mask is taken when the current instruction ends.
 // Level 2 with the mask at 0: after the NOP, the acknowledge cycle with 2 on
 // A1-A3 (the other address lines high, A0 high for the byte), autovector 26,
-// and the NOP after it stacked as the return address. 6.2 for the frame, 8.4
-// for the time.
+// and the NOP after it stacked as the return address. 6.2 for the frame,
+// Table 7-15 for the time.
 TEST(an_interrupt_above_the_mask_is_taken_after_the_instruction) {
     Machine m(NOP, NOP, 0x2004);   // mask 0, Z set to see it kept
     m.cpu.step();
