@@ -16,4 +16,13 @@ uint8_t ZX8302::read_rtc(unsigned offset, uint64_t clock) const {
     return static_cast<uint8_t>(seconds >> (8 * (3 - (offset & 3))));
 }
 
+void ZX8302::write_link(uint8_t value, IPC& ipc) {
+    // The start bit pulls COMDATA low, which the IPC is waiting for; then the
+    // data bit goes out and the IPC's two COMCTL pulses latch the line for
+    // the CPU (MAME's transmit_ipc_data and comctl_w). The JS ROM writes
+    // %11x0 to send x and %1110 to listen ($2F7C, $2F9C).
+    if ((value & 0x01) != 0) return;
+    comdata_ = ipc.exchange((value & 0x02) != 0) ? 1 : 0;
+}
+
 } // namespace ql

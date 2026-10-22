@@ -60,6 +60,7 @@ add_library(ql_machine STATIC
   src/ql.cpp
   src/zx8301.cpp
   src/zx8302.cpp
+  src/ipc.cpp
 )
 target_include_directories(ql_machine PUBLIC src)
 target_link_libraries(ql_machine PUBLIC ql_m68008)

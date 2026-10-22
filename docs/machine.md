@@ -1,6 +1,6 @@
 # The machine
 
-The QL around its 68008: what the CPU sees when it reads and writes, what the display draws, and how the machine is run. It grows a section per part as the rest of the ZX8302 and the IPC are added.
+The QL around its 68008: what the CPU sees when it reads and writes, what the display draws, and how the machine is run. It grows a section per part as the rest of the ZX8302 is added; the IPC and the keyboard have their own page, [docs/ipc.md](ipc.md).
 
 ## Memory map
 
@@ -10,7 +10,7 @@ The QL's 68008 is the 48-pin version, which drives only address lines A0-A19: it
 |---|---|---|
 | `$00000`-`$0BFFF` | The system ROM, 48K | Yes. Writes are ignored. An image under 48K leaves the rest reading as 0; one over 48K is refused. |
 | `$0C000`-`$0FFFF` | The ROM cartridge port, 16K | Not yet: reads as 0. |
-| `$18000`-`$1BFFF` | I/O: the ZX8302 at `$18000`, the ZX8301's control register at `$18063` | The ZX8301's control register (write-only; see [The display](#the-display)), and the ZX8302's real-time clock and interrupt register (see [The ZX8302](#the-zx8302)). The rest not yet: reads as 0, writes ignored. |
+| `$18000`-`$1BFFF` | I/O: the ZX8302 at `$18000`, the ZX8301's control register at `$18063` | The ZX8301's control register (write-only; see [The display](#the-display)), and the ZX8302's real-time clock, interrupt register and IPC link (see [The ZX8302](#the-zx8302)). The rest not yet: reads as 0, writes ignored. |
 | `$20000`-`$3FFFF` | RAM, 128K; the screen at its foot | Yes. |
 | `$40000`-`$BFFFF` | The 512K RAM expansion area | Yes, with `--ram 640`. Otherwise reads as 0. |
 | `$C0000`-`$FFFFF` | Expansion ROMs | Not emulated: reads as 0. |
@@ -42,7 +42,7 @@ The ZX8301 draws the screen from RAM onto a 512×256 canvas, in either mode, at 
 
 ## The ZX8302
 
-The QL's peripheral chip. So far, its interrupts and its real-time clock, from MAME's ZX8302 (`src/mame/sinclair/zx8302.cpp`, BSD-3-Clause).
+The QL's peripheral chip. So far, its interrupts, its real-time clock and its end of the IPC link, from MAME's ZX8302 (`src/mame/sinclair/zx8302.cpp`, BSD-3-Clause).
 
 **The frame interrupt.** Each frame begins with the display's vertical sync, which raises the frame interrupt: at power-on, and every 150,000 clocks after it. While any interrupt is pending the ZX8302 holds IPL1L, which on the QL's 48-pin 68008 is interrupt level 2 -- the 48-pin part has only levels 2, 5 and 7 (M68000 User's Manual 6.3.2) -- so it arrives through autovector 26, at `$68`.
 
@@ -57,7 +57,9 @@ An interrupt stays pending, and IPL1L held, until it is cleared: a handler that 
 
 **The real-time clock**, `$18000`-`$18003`: a count of seconds since 1 January 1961, read most significant byte first. The server sets it from the host clock at power-on and at reset, converting from Unix time by adding 3,287 days (283,996,800 seconds), and it then advances one second per 7,500,000 clocks of emulated time, not the host's. Writes to it are ignored, as in MAME, for now.
 
-**Not yet:** the IPC link, the microdrives and the network; and the extra time the CPU's interrupt acknowledge takes to synchronise with the E clock, which waits for a source to cite (recorded on #21).
+**The IPC link**: each write to `$18003` sends a bit to the IPC or listens for one, and `$18020` bit 7 is the bit on the line, bit 6 busy. [docs/ipc.md](ipc.md) describes the protocol and the IPC behind it. The rest of `$18020`, the microdrive and serial status, reads as 0.
+
+**Not yet:** the microdrives and the network; and the extra time the CPU's interrupt acknowledge takes to synchronise with the E clock, which waits for a source to cite (recorded on #21).
 
 ## Running
 

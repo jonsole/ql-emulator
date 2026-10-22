@@ -1,10 +1,12 @@
 #pragma once
 // The ZX8302: the QL's peripheral chip. So far its interrupts -- the frame
-// interrupt, raised by the display's vertical sync -- and the interrupt
-// register. The real-time clock, the IPC link, the microdrives and the
+// interrupt, raised by the display's vertical sync -- the interrupt register,
+// the real-time clock and its end of the IPC link. The microdrives and the
 // network come with their own tickets.
 //
 // From MAME's ZX8302 (src/mame/sinclair/zx8302.cpp and .h, BSD-3-Clause).
+
+#include "ipc.h"
 
 #include <cstdint>
 
@@ -46,11 +48,24 @@ public:
     /// significant.
     uint8_t read_rtc(unsigned offset, uint64_t clock) const;
 
+    /// A write to the IPC link register, $18003. Its low four bits are the
+    /// frame the ZX8302 sends: bit 0 the start bit, bit 1 the data bit, bits
+    /// 2 and 3 the stop bits (MAME's ipc_command_w). A start bit of 0 begins
+    /// a transfer of one bit with the IPC; a 1 only releases the line, as the
+    /// ROM's $01 at power-on does.
+    void write_link(uint8_t value, IPC& ipc);
+    /// The status register, $18020, as far as the IPC link goes: bit 7 is the
+    /// last bit on COMDATA, bit 6 busy. The IPC answers each bit at once, so
+    /// busy never reads set.
+    uint8_t read_status() const { return static_cast<uint8_t>(comdata_ << 7); }
+
 private:
     uint8_t pending_ = 0;
     uint8_t mask_ = 0;
     uint32_t rtc_seconds_ = 0;
     uint64_t rtc_set_at_ = 0;
+    /// COMDATA as last latched for the CPU; idle high (MAME's m_comdata_to_cpu).
+    uint8_t comdata_ = 1;
 };
 
 /// The real-time clock's count for a Unix time: seconds since 1 January 1961,

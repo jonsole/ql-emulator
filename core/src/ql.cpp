@@ -16,6 +16,11 @@ constexpr uint32_t ZX8301_CONTROL = 0x18063;
 constexpr uint32_t ZX8302_RTC = 0x18000;
 /// The ZX8302's interrupt register (MAME's QL driver).
 constexpr uint32_t ZX8302_INTERRUPT = 0x18021;
+/// The ZX8302's status register, read-only here; its IPC link bits so far
+/// (MAME's QL driver).
+constexpr uint32_t ZX8302_STATUS = 0x18020;
+/// The IPC link register, write-only (MAME's QL driver; the JS ROM's $2F6E).
+constexpr uint32_t ZX8302_LINK = 0x18003;
 /// IPL1L alone, which is all the ZX8302 drives, is interrupt level 2 on the
 /// QL's 48-pin 68008 (User's Manual 6.3.2: levels 2, 5 and 7 only).
 constexpr unsigned ZX8302_LEVEL = 2;
@@ -26,6 +31,12 @@ constexpr uint32_t RAM_BASE = 0x20000;
 constexpr uint32_t ADDRESS_MASK = 0xFFFFF;
 /// The 68008 at 7.5 MHz and 50 frames a second.
 constexpr uint64_t CLOCKS_PER_FRAME = 7'500'000 / 50;
+/// How often the IPC scans its keyboard, in 68008 clocks. Its idle loop --
+/// the scan, the serial housekeeping and the look for a command, $500-$207 --
+/// is about 308 machine cycles by the opcode timings in the IPC ROM's
+/// disassembly; at 11 MHz / 15, 733,333 machine cycles a second, that is
+/// 308 x 7,500,000 / 733,333 = 3,150 clocks, some 2,400 scans a second.
+constexpr uint64_t CLOCKS_PER_IPC_SCAN = 3'150;
 
 } // namespace
 
@@ -40,6 +51,8 @@ QL::QL(std::vector<uint8_t> rom, unsigned ram_kb) : rom_(std::move(rom)), ram_(r
 }
 
 void QL::reset() {
+    // MAME resets every device with the machine, the 8049 with the 68008.
+    ipc_.reset();
     cpu_.reset();
 }
 
@@ -49,6 +62,12 @@ void QL::step() {
     while (cpu_.clock() >= next_vsync_) {
         zx8302_.vsync();
         next_vsync_ += CLOCKS_PER_FRAME;
+    }
+    // The IPC scans its keyboard on its own clock, all the time it is not
+    // answering a command; its answers take no time here.
+    while (cpu_.clock() >= next_ipc_scan_) {
+        ipc_.scan();
+        next_ipc_scan_ += CLOCKS_PER_IPC_SCAN;
     }
     cpu_.set_interrupt_level(zx8302_.interrupt_pending() ? ZX8302_LEVEL : 0);
     cpu_.step();
@@ -67,6 +86,7 @@ uint8_t QL::peek(uint32_t address) const {
     if (address < ROM_SIZE) return rom_[address];
     if (address >= RAM_BASE && address - RAM_BASE < ram_.size()) return ram_[address - RAM_BASE];
     if (address == ZX8302_INTERRUPT) return zx8302_.read_interrupt();
+    if (address == ZX8302_STATUS) return zx8302_.read_status();
     if (address >= ZX8302_RTC && address < ZX8302_RTC + 4) return zx8302_.read_rtc(address - ZX8302_RTC, cpu_.clock());
     // Nothing answers: 0, as in MAME's QL driver.
     return 0;
@@ -93,6 +113,10 @@ void QL::write(const BusCycle& cycle, uint8_t data) {
     }
     if (address == ZX8302_INTERRUPT) {
         zx8302_.write_interrupt(data);
+        return;
+    }
+    if (address == ZX8302_LINK) {
+        zx8302_.write_link(data, ipc_);
         return;
     }
     if (address >= RAM_BASE && address - RAM_BASE < ram_.size()) ram_[address - RAM_BASE] = data;

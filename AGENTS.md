@@ -92,7 +92,7 @@ tests; Minerva (GPL v2) is the one ROM that may ship.
 
 | Path | What |
 |---|---|
-| `core/src/` | The CPU (`ql_m68008`), the machine parts (`ql_machine`: `ql.cpp`, `zx8301.cpp`, and to come `zx8302.cpp`, `ipc.cpp`, `microdrive.cpp`), and the server (`ql_server_core`: the Engine, MCP, and the plumbing copied from zx; `main.cpp` is `ql_server`) |
+| `core/src/` | The CPU (`ql_m68008`), the machine parts (`ql_machine`: `ql.cpp`, `zx8301.cpp`, `zx8302.cpp`, `ipc.cpp`, and to come `microdrive.cpp`), and the server (`ql_server_core`: the Engine, MCP, and the plumbing copied from zx; `main.cpp` is `ql_server`) |
 | `core/third_party/` | Vendored headers: nlohmann/json and stb_image_write ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)) |
 | `core/tests/` | The test suite |
 | `vscode-extension/` | Its own extension: debugger type `ql`, a screen panel, a 68k assembly language mode |
