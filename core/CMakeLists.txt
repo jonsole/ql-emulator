@@ -53,6 +53,16 @@ add_library(ql_m68008 STATIC
 target_include_directories(ql_m68008 PUBLIC src)
 target_compile_options(ql_m68008 PRIVATE ${QL_WARNINGS})
 
+# ---- ql_machine: the QL around the CPU ----------------------------------------
+# Stage 2 of docs/plan.md: the memory map, and in time the ZX8301, the ZX8302
+# and the IPC. It is the Bus the 68008 sees.
+add_library(ql_machine STATIC
+  src/ql.cpp
+)
+target_include_directories(ql_machine PUBLIC src)
+target_link_libraries(ql_machine PUBLIC ql_m68008)
+target_compile_options(ql_machine PRIVATE ${QL_WARNINGS})
+
 # ---- tests --------------------------------------------------------------------
 option(QL_BUILD_TESTS "Build the test suite" ON)
 if(QL_BUILD_TESTS)

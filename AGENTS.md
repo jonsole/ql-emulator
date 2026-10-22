@@ -6,8 +6,10 @@ this file is about how to work on it.
 
 ## The short version
 
-- **Stage 1 is under way: the 68008 as a standalone library.** Its tickets
-  are GitHub issues #1-#12. [docs/plan.md](docs/plan.md) is settled: every
+- **Stage 2 is under way: SuperBASIC on screen, the first milestone.** Its
+  tickets are GitHub issues #13-#24; Stage 1, the 68008 core (#1-#12), is
+  done. The CPU is the `ql_m68008` library; the QL machine around it is
+  `ql_machine`. [docs/plan.md](docs/plan.md) is settled: every
   decision in it has been made, and a change of mind goes back through the
   same question and updates that file rather than quietly diverging from it.
 - **This is a sister project to zx-spectrum-emulator, not a fork of it.** Parts
