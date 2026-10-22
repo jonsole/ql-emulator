@@ -38,6 +38,7 @@ public:
     Screen screen() const;
 
     M68008& cpu() { return cpu_; }
+    const M68008& cpu() const { return cpu_; }
 
     uint8_t read(const BusCycle& cycle) override;
     void write(const BusCycle& cycle, uint8_t data) override;

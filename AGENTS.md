@@ -37,9 +37,14 @@ cd core
 ```
 
 `build.ps1` finds the Visual Studio Build Tools and imports their environment
-itself, as zx-spectrum-emulator's does. Run it from the PowerShell tool, not
-from bash: a fresh `powershell` started from bash refuses the script under the
-default execution policy.
+itself, as zx-spectrum-emulator's does. Run it from the PowerShell tool; from
+bash a plain `powershell` refuses the script under the default execution
+policy, but `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& ...\build.ps1"`
+works.
+
+A test that indexes an nlohmann::json with `[]` on a missing key asserts, and
+in a Debug build an assertion is a dialog box that hangs the test run; tests
+use `.at()`, which throws and fails the test instead.
 
 Each test is a plain executable built from `core/tests/<name>.cpp` with the
 three-macro harness in `test_main.h` (`TEST`, `CHECK`, `CHECK_EQ`; an
@@ -87,7 +92,8 @@ tests; Minerva (GPL v2) is the one ROM that may ship.
 
 | Path | What |
 |---|---|
-| `core/src/` | The CPU and machine parts (`m68008.cpp`, `zx8301.cpp`, `zx8302.cpp`, `ipc.cpp`, `microdrive.cpp`, `ql.cpp`), and later the Engine, DAP and MCP code |
+| `core/src/` | The CPU (`ql_m68008`), the machine parts (`ql_machine`: `ql.cpp`, `zx8301.cpp`, and to come `zx8302.cpp`, `ipc.cpp`, `microdrive.cpp`), and the server (`ql_server_core`: the Engine, MCP, and the plumbing copied from zx; `main.cpp` is `ql_server`) |
+| `core/third_party/` | Vendored headers: nlohmann/json and stb_image_write ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)) |
 | `core/tests/` | The test suite |
 | `vscode-extension/` | Its own extension: debugger type `ql`, a screen panel, a 68k assembly language mode |
 | `scripts/` | Fetching the test suites, `.mdv` tools |

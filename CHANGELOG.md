@@ -16,3 +16,4 @@
 - The core has the 68008's reset sequence: the supervisor state with the interrupt mask at 7, the stack pointer and PC from the reset vector, in the 64 clocks Motorola's 68008 table gives.
 - The QL machine has begun: its memory map -- the 48K ROM, 128K or 640K of RAM, the 1 MB address space the 48-pin 68008 sees -- and it runs a ROM from reset, frame by frame. See docs/machine.md.
 - The QL machine draws its screen: the ZX8301's mode 4 and mode 8 on a 512x256 canvas, both screens, display off, and mode 8's flash.
+- `ql_server` runs the QL and is driven over MCP: run, pause, step, reset, get_state, read_memory, get_screen and server_info, with `--rom`, `--ram`, `--mcp-host`, `--mcp-port` and `--uncapped`. It runs in realtime at 7.5 MHz unless uncapped. See docs/server.md.

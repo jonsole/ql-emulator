@@ -21,7 +21,7 @@ target_compile_options(ql_m68000_suite PRIVATE ${QL_WARNINGS})
 
 function(ql_add_test name)
   add_executable(${name} ${name}.cpp)
-  target_link_libraries(${name} PRIVATE ql_machine ql_m68000_suite)
+  target_link_libraries(${name} PRIVATE ql_server_core ql_m68000_suite)
   target_compile_options(${name} PRIVATE ${QL_WARNINGS})
   add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
   add_dependencies(ql_tests ${name})
@@ -36,6 +36,10 @@ ql_add_test(m68008_timing_table_tests)
 ql_add_test(m68008_reset_tests)
 ql_add_test(ql_machine_tests)
 ql_add_test(ql_display_tests)
+ql_add_test(engine_tests)
+ql_add_test(mcp_tests)
+ql_add_test(mcp_http_tests)
+ql_add_test(server_options_tests)
 
 # The CPU gate, registered twice: a fixed sample of each file in the fast
 # suite, and every test as a slow one. Exit code 77 means the suite has not

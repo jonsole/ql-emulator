@@ -64,6 +64,33 @@ target_include_directories(ql_machine PUBLIC src)
 target_link_libraries(ql_machine PUBLIC ql_m68008)
 target_compile_options(ql_machine PRIVATE ${QL_WARNINGS})
 
+# ---- ql_server_core: the Engine and the front ends -----------------------------
+# Everything ql_server is apart from its main(): the Engine that owns the live
+# machine, MCP, and the socket, HTTP and encoding plumbing copied from
+# zx-spectrum-emulator. A library so the tests can drive it in-process. The
+# vendored headers in third_party are SYSTEM, outside /W4 /WX.
+add_library(ql_server_core STATIC
+  src/engine.cpp
+  src/mcp_server.cpp
+  src/png.cpp
+  src/server_options.cpp
+  src/net.cpp
+  src/http.cpp
+  src/base64.cpp
+)
+target_include_directories(ql_server_core PUBLIC src)
+target_include_directories(ql_server_core SYSTEM PUBLIC third_party)
+target_link_libraries(ql_server_core PUBLIC ql_machine)
+if(WIN32)
+  target_link_libraries(ql_server_core PUBLIC ws2_32)
+endif()
+target_compile_options(ql_server_core PRIVATE ${QL_WARNINGS})
+
+# ---- ql_server: the program ----------------------------------------------------
+add_executable(ql_server src/main.cpp)
+target_link_libraries(ql_server PRIVATE ql_server_core)
+target_compile_options(ql_server PRIVATE ${QL_WARNINGS})
+
 # ---- tests --------------------------------------------------------------------
 option(QL_BUILD_TESTS "Build the test suite" ON)
 if(QL_BUILD_TESTS)

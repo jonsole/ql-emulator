@@ -35,4 +35,18 @@ inline std::vector<uint8_t> rom_running(std::initializer_list<uint16_t> program)
     return rom;
 }
 
+/// Where counting_rom() stores its count.
+constexpr uint32_t COUNTER = 0x030000;
+
+/// $100 MOVEQ #0,D0; $102 ADDQ.L #1,D0; $104 MOVE.L D0,($00030000).L;
+/// $10A BRA.S $102 -- counting up for ever.
+inline std::vector<uint8_t> counting_rom() {
+    return rom_running({
+        0x7000,                   // $100 MOVEQ #0,D0
+        0x5280,                   // $102 ADDQ.L #1,D0
+        0x23C0, 0x0003, 0x0000,   // $104 MOVE.L D0,($00030000).L
+        0x60F6,                   // $10A BRA.S $102
+    });
+}
+
 } // namespace qltest
