@@ -96,6 +96,12 @@ public:
     /// again.
     bool stopped() const { return stopped_; }
 
+    /// The IPL lines, as the level 0-7 they encode (0: none). The machine
+    /// holds them; the core looks at them between instructions. Levels 1-6
+    /// are taken while above the mask in SR; level 7 is taken whatever the
+    /// mask, once each time the lines rise to it.
+    void set_interrupt_level(unsigned level);
+
 private:
     uint8_t read_byte(uint32_t address, FunctionCode function_code);
     uint16_t read_word(uint32_t address, FunctionCode function_code);
@@ -257,6 +263,10 @@ private:
     /// The exception for an instruction that cannot run -- illegal, line A
     /// or F, or privileged in the user state -- returning to its opcode.
     void instruction_exception(unsigned vector);
+    /// Whether the interrupt level now on the IPL lines is to be taken.
+    bool interrupt_due() const;
+    /// Interrupt exception processing for the level on the IPL lines.
+    void take_interrupt();
     /// For a privileged instruction: true in the supervisor state; otherwise
     /// takes the privilege-violation exception and returns false.
     bool supervisor_or_trap();
@@ -267,6 +277,9 @@ private:
     bool stopped_ = false;
     /// An instruction ran with T set; its trace exception is the next step.
     bool trace_pending_ = false;
+    unsigned interrupt_level_ = 0;
+    /// Level 7 has been taken since the lines last rose to it.
+    bool level_7_taken_ = false;
 };
 
 } // namespace ql

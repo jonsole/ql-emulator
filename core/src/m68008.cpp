@@ -296,6 +296,45 @@ void M68008::instruction_exception(unsigned vector) {
     exception(vector, regs_.pc - 4);
 }
 
+void M68008::set_interrupt_level(unsigned level) {
+    interrupt_level_ = level & 7;
+    if (interrupt_level_ < 7) level_7_taken_ = false;
+}
+
+bool M68008::interrupt_due() const {
+    // Level 7 cannot be masked, but is edge-triggered: held at 7 it is taken
+    // once. The others are taken while above the mask (User's Manual 6.3.2).
+    if (interrupt_level_ == 7) return !level_7_taken_;
+    return interrupt_level_ > ((regs_.sr >> 8) & 7u);
+}
+
+void M68008::take_interrupt() {
+    // The return address is the next instruction's, whose opcode is in IR,
+    // 4 behind PC -- except after STOP, which leaves its own opcode in IR
+    // and PC already past its immediate, at the next instruction.
+    unsigned level = interrupt_level_;
+    if (level == 7) level_7_taken_ = true;
+    uint32_t return_address = stopped_ ? regs_.pc : regs_.pc - 4;
+
+    // 44(5/3) clocks on the 68000 (User's Manual 8.4): the frame, the vector
+    // and the queue as for any exception, the acknowledge cycle -- a byte
+    // read in the interrupt acknowledge space, with the level on A1-A3 and
+    // every other line high -- and 12 internal clocks, 2 of them inside
+    // exception(). The manual gives the total, not the order inside it, and
+    // nothing here observes the order; the frame and the time are what the
+    // tests check.
+    idle(6);
+    read_byte(0xFFFFF1 | level << 1, FunctionCode::InterruptAcknowledge);
+    idle(4);
+    // The QL answers every acknowledge with VPA, so the vector is always the
+    // autovector, 24 + level. A device supplying its own vector number is not
+    // supported, since nothing on the QL does. Any wait for VPA's E-clock
+    // synchronisation is the Bus's to add, through wait_states.
+    exception(VECTOR_AUTOVECTOR_0 + level, return_address);
+    // The mask is raised to the level taken (6.3.2).
+    regs_.sr = static_cast<uint16_t>((regs_.sr & ~SR_MASK) | level << 8);
+}
+
 bool M68008::supervisor_or_trap() {
     if (regs_.sr & SR_S) return true;
     // The check comes before any operand is touched.
@@ -312,6 +351,10 @@ void M68008::step() {
         trace_pending_ = false;
         idle(4);
         exception(VECTOR_TRACE, regs_.pc - 4);
+        return;
+    }
+    if (interrupt_due()) {
+        take_interrupt();
         return;
     }
     if (stopped_) {

@@ -10,3 +10,4 @@
 - The core has the shifts and rotates: ASL, ASR, LSL, LSR, ROL, ROR, ROXL and ROXR, on a data register by an immediate count or a register's modulo 64, and on a word in memory by one bit, each taking the 68000's time for its count.
 - The core has MOVEM, in word and long sizes and every allowed addressing mode, the predecrement form with its reversed register order, and MOVEP.
 - The core has multiply, divide and BCD: MULU, MULS, DIVU and DIVS, each taking the 68000's operand-dependent time, with divide by zero and overflow; and ABCD, SBCD and NBCD with the flags the manual leaves undefined set as the 68000 sets them. With these the core runs the whole 68000 instruction set.
+- The core takes interrupts: the machine sets the IPL level, levels 1-6 are taken above the mask in SR and level 7 on each rise to it, with an autovectored acknowledge cycle the Bus sees, and an interrupt above its new mask wakes the processor from STOP.

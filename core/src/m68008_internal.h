@@ -45,6 +45,7 @@ constexpr uint16_t SR_N = 0x0008;
 constexpr uint16_t SR_Z = 0x0004;
 constexpr uint16_t SR_V = 0x0002;
 constexpr uint16_t SR_C = 0x0001;
+constexpr uint16_t SR_MASK = 0x0700;   ///< the interrupt mask, I2-I0
 constexpr uint16_t SR_CCR = 0x001F;
 /// The bits of SR that exist on a 68000: T, S, the interrupt mask and the
 /// condition codes. The rest read as zero whatever is written.
@@ -60,6 +61,8 @@ constexpr unsigned VECTOR_PRIVILEGE = 8;
 constexpr unsigned VECTOR_TRACE = 9;
 constexpr unsigned VECTOR_LINE_A = 10;
 constexpr unsigned VECTOR_LINE_F = 11;
+/// Autovector n, for interrupt level n (1-7), is 24 + n.
+constexpr unsigned VECTOR_AUTOVECTOR_0 = 24;
 constexpr unsigned VECTOR_TRAP_0 = 32;
 
 /// The bits an operation of the given size works on.
