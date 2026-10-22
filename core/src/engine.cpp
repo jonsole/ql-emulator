@@ -1,5 +1,6 @@
 #include "engine.h"
 
+#include <ctime>
 #include <future>
 #include <utility>
 
@@ -18,9 +19,16 @@ constexpr std::chrono::milliseconds SCREEN_PUBLISH_INTERVAL{20};
 /// The QL's 68008 at 7.5 MHz, for pacing a run against the wall clock.
 constexpr double CLOCKS_PER_SECOND = 7'500'000.0;
 
+/// The real-time clock is set from the host's at power-on and reset, and then
+/// moves only with emulated time (docs/plan.md, The machine).
+void set_rtc_from_host(QL& machine) {
+    machine.set_rtc(rtc_from_unix(int64_t(std::time(nullptr))));
+}
+
 } // namespace
 
 Engine::Engine(std::vector<uint8_t> rom, unsigned ram_kb) : machine_(std::move(rom), ram_kb) {
+    set_rtc_from_host(machine_);
     machine_.reset();
     publish_screen();
     thread_ = std::thread([this] { actor_loop(); });
@@ -126,7 +134,7 @@ MachineState Engine::run() {
             pace_reset();
             uint64_t count = 0;
             while (!pause_requested_.load()) {
-                m.cpu().step();
+                m.step();
                 if (++count % RUN_YIELD_EVERY == 0) {
                     // A frame every 20 ms is all a viewer can use; rendering
                     // at every yield would cost the run more than it gives.
@@ -149,7 +157,7 @@ MachineState Engine::step(uint32_t instructions) {
     MachineState state{};
     submit(
         [this, instructions, &state](QL& m) {
-            for (uint32_t i = 0; i < instructions; i++) m.cpu().step();
+            for (uint32_t i = 0; i < instructions; i++) m.step();
             state = snapshot();
         },
         /*during_run=*/false);
@@ -160,6 +168,7 @@ MachineState Engine::reset() {
     MachineState state{};
     submit(
         [this, &state](QL& m) {
+            set_rtc_from_host(m);
             m.reset();
             state = snapshot();
         },

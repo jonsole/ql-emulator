@@ -17,3 +17,4 @@
 - The QL machine has begun: its memory map -- the 48K ROM, 128K or 640K of RAM, the 1 MB address space the 48-pin 68008 sees -- and it runs a ROM from reset, frame by frame. See docs/machine.md.
 - The QL machine draws its screen: the ZX8301's mode 4 and mode 8 on a 512x256 canvas, both screens, display off, and mode 8's flash.
 - `ql_server` runs the QL and is driven over MCP: run, pause, step, reset, get_state, read_memory, get_screen and server_info, with `--rom`, `--ram`, `--mcp-host`, `--mcp-port` and `--uncapped`. It runs in realtime at 7.5 MHz unless uncapped. See docs/server.md.
+- The QL machine has the ZX8302's frame interrupt, at 50 Hz on level 2, its interrupt register, and its real-time clock, set from the host clock at reset and then advancing in emulated time. See docs/machine.md.

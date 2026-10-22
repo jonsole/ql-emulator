@@ -9,6 +9,7 @@
 
 #include "m68008.h"
 #include "zx8301.h"
+#include "zx8302.h"
 
 #include <cstdint>
 #include <vector>
@@ -23,6 +24,13 @@ public:
 
     /// Power-on, or the reset button: the CPU's reset sequence.
     void reset();
+    /// Sets the real-time clock, in seconds since 1 January 1961 (see
+    /// rtc_from_unix). The server sets it from the host clock at power-on and
+    /// reset; after that it moves only with emulated time.
+    void set_rtc(uint32_t seconds) { zx8302_.set_rtc(seconds, cpu_.clock()); }
+    /// One instruction, with whatever the machine does around it: the frame
+    /// interrupt raised as each frame begins, and the IPL lines set.
+    void step();
     /// Runs whole instructions to the end of the frame `frames` on from the
     /// current one. Frames are counted from power-on, frame k ending at
     /// k x 150,000 clocks (7.5 MHz at 50 Hz).
@@ -47,6 +55,9 @@ private:
     std::vector<uint8_t> rom_;
     std::vector<uint8_t> ram_;
     ZX8301 display_;
+    ZX8302 zx8302_;
+    /// When the next frame begins, with its vertical sync.
+    uint64_t next_vsync_ = 0;
     M68008 cpu_;
 };
 

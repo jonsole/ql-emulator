@@ -11,6 +11,14 @@ namespace {
 constexpr uint32_t ROM_SIZE = 0x0C000;
 /// The ZX8301's display control register, write-only (MAME's QL driver).
 constexpr uint32_t ZX8301_CONTROL = 0x18063;
+/// The ZX8302's real-time clock, four bytes, read-only here: MAME ignores
+/// writes to it, and so does this for now.
+constexpr uint32_t ZX8302_RTC = 0x18000;
+/// The ZX8302's interrupt register (MAME's QL driver).
+constexpr uint32_t ZX8302_INTERRUPT = 0x18021;
+/// IPL1L alone, which is all the ZX8302 drives, is interrupt level 2 on the
+/// QL's 48-pin 68008 (User's Manual 6.3.2: levels 2, 5 and 7 only).
+constexpr unsigned ZX8302_LEVEL = 2;
 /// RAM starts at $20000, the screen at its foot.
 constexpr uint32_t RAM_BASE = 0x20000;
 /// The QL's 48-pin 68008 drives A0-A19 only: the CPU's 24-bit addresses wrap
@@ -35,18 +43,31 @@ void QL::reset() {
     cpu_.reset();
 }
 
+void QL::step() {
+    // Each frame begins with the display's vertical sync, raising the frame
+    // interrupt: at power-on, and every 150,000 clocks after it.
+    while (cpu_.clock() >= next_vsync_) {
+        zx8302_.vsync();
+        next_vsync_ += CLOCKS_PER_FRAME;
+    }
+    cpu_.set_interrupt_level(zx8302_.interrupt_pending() ? ZX8302_LEVEL : 0);
+    cpu_.step();
+}
+
 void QL::run_frames(unsigned frames) {
     // Frames are counted from power-on, frame k ending at k x 150,000 clocks,
     // so that an instruction running over a frame's end does not move every
     // frame after it.
     uint64_t end = (cpu_.clock() / CLOCKS_PER_FRAME + frames) * CLOCKS_PER_FRAME;
-    while (cpu_.clock() < end) cpu_.step();
+    while (cpu_.clock() < end) step();
 }
 
 uint8_t QL::peek(uint32_t address) const {
     address &= ADDRESS_MASK;
     if (address < ROM_SIZE) return rom_[address];
     if (address >= RAM_BASE && address - RAM_BASE < ram_.size()) return ram_[address - RAM_BASE];
+    if (address == ZX8302_INTERRUPT) return zx8302_.read_interrupt();
+    if (address >= ZX8302_RTC && address < ZX8302_RTC + 4) return zx8302_.read_rtc(address - ZX8302_RTC, cpu_.clock());
     // Nothing answers: 0, as in MAME's QL driver.
     return 0;
 }
@@ -68,6 +89,10 @@ void QL::write(const BusCycle& cycle, uint8_t data) {
     uint32_t address = cycle.address & ADDRESS_MASK;
     if (address == ZX8301_CONTROL) {
         display_.write_control(data);
+        return;
+    }
+    if (address == ZX8302_INTERRUPT) {
+        zx8302_.write_interrupt(data);
         return;
     }
     if (address >= RAM_BASE && address - RAM_BASE < ram_.size()) ram_[address - RAM_BASE] = data;
