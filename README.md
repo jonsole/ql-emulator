@@ -9,7 +9,7 @@ It is a sister project to [zx-spectrum-emulator](https://github.com/jonsole/zx-s
 
 ## Status
 
-**Stage 2 of 7: SuperBASIC on screen.** [docs/plan.md](docs/plan.md) sets out the design, the stages and the research behind them. The 68008 core is done: it runs the whole 68000 instruction set, with exceptions, interrupts and address errors, and passes all 317,500 SingleStepTests/m68000 tests with the 68008's bus cycles and timings derived from them, checked by hand against Motorola's 68008 timing tables. The machine around it has its memory map and runs a ROM headless ([docs/machine.md](docs/machine.md)); the display, the interrupts, the IPC and the server are to come.
+**Stage 2 of 7: SuperBASIC on screen.** [docs/plan.md](docs/plan.md) sets out the design, the stages and the research behind them. The 68008 core is done: it runs the whole 68000 instruction set, with exceptions, interrupts and address errors, and passes all 317,500 SingleStepTests/m68000 tests with the 68008's bus cycles and timings derived from them, checked by hand against Motorola's 68008 timing tables. The machine around it has its memory map, runs a ROM headless and draws the screen in both modes ([docs/machine.md](docs/machine.md)); the interrupts, the IPC and the server are to come.
 
 ## The machine
 

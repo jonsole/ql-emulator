@@ -9,6 +9,8 @@ namespace {
 
 /// The system ROM: $00000-$0BFFF.
 constexpr uint32_t ROM_SIZE = 0x0C000;
+/// The ZX8301's display control register, write-only (MAME's QL driver).
+constexpr uint32_t ZX8301_CONTROL = 0x18063;
 /// RAM starts at $20000, the screen at its foot.
 constexpr uint32_t RAM_BASE = 0x20000;
 /// The QL's 48-pin 68008 drives A0-A19 only: the CPU's 24-bit addresses wrap
@@ -49,12 +51,25 @@ uint8_t QL::peek(uint32_t address) const {
     return 0;
 }
 
+void QL::poke(uint32_t address, uint8_t value) {
+    address &= ADDRESS_MASK;
+    if (address >= RAM_BASE && address - RAM_BASE < ram_.size()) ram_[address - RAM_BASE] = value;
+}
+
+Screen QL::screen() const {
+    return display_.render(ram_, cpu_.clock() / CLOCKS_PER_FRAME);
+}
+
 uint8_t QL::read(const BusCycle& cycle) {
     return peek(cycle.address);
 }
 
 void QL::write(const BusCycle& cycle, uint8_t data) {
     uint32_t address = cycle.address & ADDRESS_MASK;
+    if (address == ZX8301_CONTROL) {
+        display_.write_control(data);
+        return;
+    }
     if (address >= RAM_BASE && address - RAM_BASE < ram_.size()) ram_[address - RAM_BASE] = data;
 }
 

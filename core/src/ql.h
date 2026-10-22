@@ -8,6 +8,7 @@
 // docs/machine.md describes it.
 
 #include "m68008.h"
+#include "zx8301.h"
 
 #include <cstdint>
 #include <vector>
@@ -29,6 +30,12 @@ public:
 
     /// A byte of memory as the CPU would read it, without side effects.
     uint8_t peek(uint32_t address) const;
+    /// Writes a byte of RAM directly, as a debugger or a test does: ROM and
+    /// I/O are left alone.
+    void poke(uint32_t address, uint8_t value);
+
+    /// The screen as the ZX8301 draws it from RAM now.
+    Screen screen() const;
 
     M68008& cpu() { return cpu_; }
 
@@ -38,6 +45,7 @@ public:
 private:
     std::vector<uint8_t> rom_;
     std::vector<uint8_t> ram_;
+    ZX8301 display_;
     M68008 cpu_;
 };
 

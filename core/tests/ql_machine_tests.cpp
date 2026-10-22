@@ -9,38 +9,19 @@
 
 #include "ql.h"
 #include "test_main.h"
+#include "test_rom.h"
 
 #include <cstdint>
-#include <initializer_list>
 #include <stdexcept>
 #include <vector>
 
+using qltest::rom_running;
+using qltest::STOP;
+using qltest::SUPERVISOR;
+
 namespace {
 
-constexpr uint32_t INITIAL_SSP = 0x00040000;   // the top of 128K RAM
-constexpr uint32_t START = 0x000100;
-
-/// A ROM whose reset vector starts the given words at START.
-std::vector<uint8_t> rom_running(std::initializer_list<uint16_t> program) {
-    std::vector<uint8_t> rom(START + 2 * program.size(), 0);
-    auto put = [&rom](uint32_t at, uint16_t word) {
-        rom[at] = static_cast<uint8_t>(word >> 8);
-        rom[at + 1] = static_cast<uint8_t>(word);
-    };
-    put(0, static_cast<uint16_t>(INITIAL_SSP >> 16));
-    put(2, static_cast<uint16_t>(INITIAL_SSP));
-    put(4, static_cast<uint16_t>(START >> 16));
-    put(6, static_cast<uint16_t>(START));
-    uint32_t at = START;
-    for (uint16_t word : program) {
-        put(at, word);
-        at += 2;
-    }
-    return rom;
-}
-
-constexpr uint16_t STOP = 0x4E72;
-constexpr uint16_t SUPERVISOR = 0x2700;
+constexpr uint32_t INITIAL_SSP = qltest::ROM_INITIAL_SSP;
 
 } // namespace
 

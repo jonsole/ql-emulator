@@ -58,6 +58,7 @@ target_compile_options(ql_m68008 PRIVATE ${QL_WARNINGS})
 # and the IPC. It is the Bus the 68008 sees.
 add_library(ql_machine STATIC
   src/ql.cpp
+  src/zx8301.cpp
 )
 target_include_directories(ql_machine PUBLIC src)
 target_link_libraries(ql_machine PUBLIC ql_m68008)
