@@ -14,6 +14,7 @@ class Memory : public ql::Bus {
 public:
     uint8_t read(const ql::BusCycle& cycle) override {
         if (cycle.function_code == ql::FunctionCode::InterruptAcknowledge) acknowledges.push_back(cycle);
+        read_spaces.push_back(cycle.function_code);
         reads++;
         auto found = bytes_.find(cycle.address);
         return found == bytes_.end() ? 0 : found->second;
@@ -38,6 +39,8 @@ public:
     /// Byte cycles so far: on the 68008, two to a word.
     int reads = 0;
     int writes = 0;
+    /// The function code of every read, in order.
+    std::vector<ql::FunctionCode> read_spaces;
     /// The interrupt acknowledge cycles, which are reads too.
     std::vector<ql::BusCycle> acknowledges;
 

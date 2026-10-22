@@ -87,6 +87,11 @@ public:
     /// Clocks run since construction, at 7.5 MHz on the QL.
     uint64_t clock() const { return clock_; }
 
+    /// The reset sequence, as when RESET and HALT are released: the
+    /// supervisor state with tracing off and the interrupt mask at 7, SSP and
+    /// PC from the reset vector, and the queue filled from the PC.
+    void reset();
+
     /// Runs the instruction in IR to completion, leaving the next one in IR.
     /// After an instruction run with T set, the step after it is the trace
     /// exception alone. A word or long access at an odd address abandons the

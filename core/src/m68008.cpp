@@ -414,6 +414,27 @@ void M68008::undo_postincrement_on_fault(unsigned reg, uint32_t address, uint32_
     postincrement_undo_ = {true, reg, address, amount};
 }
 
+void M68008::reset() {
+    // User's Manual 6.3.1: the supervisor state, tracing off, the mask at 7;
+    // nothing is stacked, since SSP cannot be trusted. The vector -- the SSP
+    // in its first long, the PC in its second -- is read in the supervisor
+    // program space, and execution starts at the PC. Whatever was in
+    // progress is abandoned: STOP's wait, a trace still due, the record that
+    // level 7 has been taken (so lines held at 7 are taken again).
+    regs_.sr = static_cast<uint16_t>(SR_S | SR_MASK);
+    stopped_ = false;
+    trace_pending_ = false;
+    level_7_taken_ = false;
+    // 64(12/0) on the 68008 (Table 7-15, the row marked **): 12 byte reads
+    // and 16 internal clocks. The manual does not say where the internal
+    // clocks fall; they are taken here before the reads.
+    idle(16);
+    uint32_t high = read_word(0, FunctionCode::SupervisorProgram);
+    regs_.ssp = high << 16 | read_word(2, FunctionCode::SupervisorProgram);
+    high = read_word(4, FunctionCode::SupervisorProgram);
+    refill_queue(high << 16 | read_word(6, FunctionCode::SupervisorProgram));
+}
+
 void M68008::step() {
     try {
         run_step();
