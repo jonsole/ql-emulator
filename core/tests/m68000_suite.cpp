@@ -11,9 +11,9 @@
 // began at. The 68008's cycles and clocks are not in the file; they are
 // derived from the 68000's by m68008_timing.h, never captured from the core.
 //
-// Tests that take an address error are set aside and counted apart until the
-// group 0 exception exists (ticket #10), so the instruction tickets can pass
-// everything else first.
+// Tests that take an address error run like the rest: the attempt at the odd
+// address is 4 clocks with nothing on the bus (m68008_timing.h), and the core
+// must then stack the group 0 frame the test records.
 //
 // Exit code 77 -- reported by CTest as skipped -- means the suite has not been
 // fetched: run scripts\fetch-m68000-tests.ps1.
@@ -308,13 +308,6 @@ std::string run_case(const Case& c) {
     return "";
 }
 
-bool takes_address_error(const Case& c) {
-    for (const Transaction& t : c.transactions) {
-        if (t.kind == Kind::ReadAddressError || t.kind == Kind::WriteAddressError) return true;
-    }
-    return false;
-}
-
 } // namespace
 
 int main(int argc, char** argv) {
@@ -348,13 +341,9 @@ int main(int argc, char** argv) {
             files_failed++;
             continue;
         }
-        size_t passed = 0, failed = 0, set_aside = 0;
+        size_t passed = 0, failed = 0;
         for (size_t i = 0; i < cases.size(); i += full ? 1 : SAMPLE_STRIDE) {
             const Case& c = cases[i];
-            if (takes_address_error(c)) {
-                set_aside++;
-                continue;
-            }
             std::string diff = run_case(c);
             if (diff.empty()) {
                 passed++;
@@ -363,8 +352,7 @@ int main(int argc, char** argv) {
                 failed++;
             }
         }
-        std::printf("%s: %zu passed, %zu failed, %zu set aside as address errors\n", name.c_str(), passed, failed,
-                    set_aside);
+        std::printf("%s: %zu passed, %zu failed\n", name.c_str(), passed, failed);
         if (failed > 0) files_failed++;
     }
     return files_failed == 0 ? 0 : 1;

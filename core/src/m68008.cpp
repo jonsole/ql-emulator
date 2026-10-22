@@ -17,6 +17,9 @@ uint8_t M68008::read_byte(uint32_t address, FunctionCode function_code) {
 }
 
 uint16_t M68008::read_word(uint32_t address, FunctionCode function_code) {
+    // The 68008 keeps the 68000's check: a word at an odd address is an
+    // address error, 8-bit bus or not (MC68008 data sheet).
+    if (address & 1) address_error(address, function_code, true);
     // Big-endian, and on an 8-bit bus the even (high) byte goes first.
     uint8_t high = read_byte(address, function_code);
     uint8_t low = read_byte(address + 1, function_code);
@@ -31,6 +34,7 @@ void M68008::write_byte(uint32_t address, uint8_t data, FunctionCode function_co
 }
 
 void M68008::write_word(uint32_t address, uint16_t data, FunctionCode function_code) {
+    if (address & 1) address_error(address, function_code, false);
     write_byte(address, static_cast<uint8_t>(data >> 8), function_code);
     write_byte(address + 1, static_cast<uint8_t>(data), function_code);
 }
@@ -156,11 +160,18 @@ M68008::Operand M68008::resolve(unsigned mode, unsigned reg, Size size) {
         operand.kind = Operand::Kind::Memory;
         operand.address = an;
         an += step_size(reg, size);
+        // A long's increment comes after the access, so an address error
+        // there leaves An as it was; a word read's comes first
+        // (SingleStepTests).
+        if (size == Size::Long) undo_postincrement_on_fault(reg, operand.address, 4);
         return operand;
     }
     case 4: {
-        // The decrement costs 2 clocks before the operand is read.
+        // The decrement costs 2 clocks before the operand is read. It moves
+        // the fault PC on for a byte or word, not for a long
+        // (SingleStepTests).
         idle(2);
+        if (size != Size::Long) fault_pc_ += 2;
         uint32_t& an = address_register(reg);
         an -= step_size(reg, size);
         operand.kind = Operand::Kind::Memory;
@@ -171,6 +182,7 @@ M68008::Operand M68008::resolve(unsigned mode, unsigned reg, Size size) {
         if (reg == 4) {
             // #imm: a byte is the low half of one extension word, a long two.
             operand.kind = Operand::Kind::Immediate;
+            fault_pc_ += size == Size::Long ? 4 : 2;
             if (size == Size::Long) {
                 uint32_t high = take_extension();
                 operand.immediate = high << 16 | take_extension();
@@ -182,6 +194,10 @@ M68008::Operand M68008::resolve(unsigned mode, unsigned reg, Size size) {
         }
         // The 68000 reads PC-relative operands from program space.
         if (reg == 2 || reg == 3) operand.space = program_space();
+        // An absolute address moves the fault PC on past its words; a
+        // displacement or index word does not (see fault_pc_).
+        if (reg == 0) fault_pc_ += 2;
+        if (reg == 1) fault_pc_ += 4;
         break;
     }
     operand.kind = Operand::Kind::Memory;
@@ -342,7 +358,74 @@ bool M68008::supervisor_or_trap() {
     return false;
 }
 
+void M68008::address_error(uint32_t address, FunctionCode function_code, bool read) {
+    // The cycle is never started; the time it would have begun in is spent
+    // all the same (SingleStepTests: a 4-clock transaction, m68008_timing.h).
+    idle(BYTE_CYCLE_CLOCKS);
+    throw AddressError{address, function_code, read};
+}
+
+void M68008::address_error_exception(uint32_t address, FunctionCode function_code, bool read) {
+    // The return address is the fault PC (see fault_pc_). The manual says
+    // only that it lies somewhere near the instruction.
+    uint32_t return_address = fault_pc_;
+    if (postincrement_undo_.pending && postincrement_undo_.address == address) {
+        address_register(postincrement_undo_.reg) -= postincrement_undo_.amount;
+    }
+    postincrement_undo_.pending = false;
+    uint16_t old_sr = regs_.sr;
+    regs_.sr = static_cast<uint16_t>((regs_.sr | SR_S) & ~SR_T);
+    trace_pending_ = false;
+    stopped_ = false;
+
+    // The status word: R/W in bit 4, I/N (always 0 in SingleStepTests) in
+    // bit 3, the function code in bits 2-0, and above them -- undocumented
+    // -- the top 11 bits of IR, which SingleStepTests records in every case.
+    uint16_t status = static_cast<uint16_t>((regs_.ir & 0xFFE0) | (read ? 0x10 : 0)
+                                            | static_cast<uint16_t>(function_code));
+
+    // 8 internal clocks, then the seven words of the group 0 frame: PC low
+    // first, SR, PC high, IR, the fault address low, the status word, the
+    // fault address high (SingleStepTests' order).
+    idle(8);
+    regs_.ssp -= 14;
+    write_word(regs_.ssp + 12, static_cast<uint16_t>(return_address), FunctionCode::SupervisorData);
+    write_word(regs_.ssp + 8, old_sr, FunctionCode::SupervisorData);
+    write_word(regs_.ssp + 10, static_cast<uint16_t>(return_address >> 16), FunctionCode::SupervisorData);
+    write_word(regs_.ssp + 6, regs_.ir, FunctionCode::SupervisorData);
+    write_word(regs_.ssp + 4, static_cast<uint16_t>(address), FunctionCode::SupervisorData);
+    write_word(regs_.ssp, status, FunctionCode::SupervisorData);
+    write_word(regs_.ssp + 2, static_cast<uint16_t>(address >> 16), FunctionCode::SupervisorData);
+
+    uint32_t high = read_word(VECTOR_ADDRESS_ERROR * 4, FunctionCode::SupervisorData);
+    uint32_t handler = high << 16 | read_word(VECTOR_ADDRESS_ERROR * 4 + 2, FunctionCode::SupervisorData);
+    regs_.ir = read_word(handler, FunctionCode::SupervisorProgram);
+    idle(2);
+    regs_.irc = read_word(handler + 2, FunctionCode::SupervisorProgram);
+    regs_.pc = handler + 4;
+}
+
+void M68008::undo_postincrement_on_fault(unsigned reg, uint32_t address, uint32_t amount) {
+    postincrement_undo_ = {true, reg, address, amount};
+}
+
 void M68008::step() {
+    try {
+        run_step();
+    } catch (const AddressError& error) {
+        try {
+            address_error_exception(error.address, error.function_code, error.read);
+        } catch (const AddressError&) {
+            // An address error while stacking an address error's frame -- an
+            // odd supervisor stack pointer, say -- halts the 68000 (User's
+            // Manual, the halted state). The core does not model halting
+            // yet, so it says so rather than run on.
+            throw std::logic_error("M68008: address error during address error processing; the 68000 halts");
+        }
+    }
+}
+
+void M68008::run_step() {
     if (trace_pending_) {
         // The trace exception for the instruction before, returning to the
         // next, whose opcode is already in IR. On the chip it belongs to the
@@ -368,6 +451,8 @@ void M68008::step() {
     // traced, one that clears it is. An instruction that is refused cancels
     // its trace (instruction_exception).
     trace_pending_ = (regs_.sr & SR_T) != 0;
+    fault_pc_ = regs_.pc - 2;
+    postincrement_undo_.pending = false;
     execute(regs_.ir);
 }
 

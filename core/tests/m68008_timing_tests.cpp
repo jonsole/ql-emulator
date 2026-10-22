@@ -81,4 +81,29 @@ TEST(byte_cycles_are_unchanged) {
     CHECK_EQ(e.length, uint64_t{8});
 }
 
+// An access that takes an address error never reaches the bus: the 68000
+// sees the odd address before it starts the cycle, and the suite records the
+// attempt as one transaction of its own, 4 clocks long. On the 68008 the
+// check comes at the same point, before any byte cycle, so it is 4 clocks
+// with nothing on the bus. A word read at 0, the attempt from clock 8, 8
+// internal clocks, a word written from clock 20: bytes at 0, 4, 20 and 24,
+// 28 in all.
+TEST(an_address_error_is_four_clocks_with_nothing_on_the_bus) {
+    Expected68008 e = derive_68008({
+        word(Kind::Read, 0x001000, 0x4E71),
+        {Kind::ReadAddressError, 4, 5, 0x002000, 0, true, true},
+        {Kind::Idle, 8, 0, 0, 0, false, false},
+        word(Kind::Write, 0x003000, 0x1234),
+    });
+    CHECK_EQ(e.cycles.size(), size_t{4});
+    if (e.cycles.size() != 4) return;
+    const Kind kinds[4] = {Kind::Read, Kind::Read, Kind::Write, Kind::Write};
+    const uint64_t clocks[4] = {0, 4, 20, 24};
+    for (int i = 0; i < 4; i++) {
+        CHECK(e.cycles[i].kind == kinds[i]);
+        CHECK_EQ(e.cycles[i].clock, clocks[i]);
+    }
+    CHECK_EQ(e.length, uint64_t{28});
+}
+
 RUN_TESTS()

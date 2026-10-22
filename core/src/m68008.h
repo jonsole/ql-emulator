@@ -89,7 +89,10 @@ public:
 
     /// Runs the instruction in IR to completion, leaving the next one in IR.
     /// After an instruction run with T set, the step after it is the trace
-    /// exception alone.
+    /// exception alone. A word or long access at an odd address abandons the
+    /// instruction there and takes the address error exception within the
+    /// same step; a second one while stacking that frame, where the 68000
+    /// would halt, throws std::logic_error.
     void step();
 
     /// True after STOP, until an interrupt or reset starts the processor
@@ -154,6 +157,8 @@ private:
     /// the condition codes of every move.
     void set_move_flags(uint32_t value, Size size);
 
+    /// step() without the address-error handling around it.
+    void run_step();
     /// Runs one instruction, by the opcode's decoding.
     void execute(uint16_t opcode);
 
@@ -162,6 +167,8 @@ private:
     // an opcode the decoding has already found valid.
     static Size move_size(uint16_t opcode);
     void move(uint16_t opcode, Size size);
+    /// MOVE's write, in the destination's own order against the prefetch.
+    void move_to_destination(uint16_t opcode, Size size, uint32_t value);
     void moveq(uint16_t opcode);
     void movea(uint16_t opcode);
     void lea(uint16_t opcode);
@@ -194,8 +201,9 @@ private:
     void addi_subi(uint16_t opcode);
     void adda_suba(uint16_t opcode);
     void addx_subx(uint16_t opcode);
-    /// Reads -(An) as ADDX and SUBX do: An decremented, then the operand
-    /// read, a long's low word first. `address` is set to where it was.
+    /// Reads -(An) as ADDX and SUBX do, a long's low word first. A byte's or
+    /// word's decrement comes before the read, a long's after both words.
+    /// `address` is set to where the operand was.
     uint32_t read_predecrement_low_first(unsigned reg, Size size, uint32_t& address);
 
     /// The size field most instructions keep in bits 7-6: 00 byte, 01 word,
@@ -263,6 +271,14 @@ private:
     /// The exception for an instruction that cannot run -- illegal, line A
     /// or F, or privileged in the user state -- returning to its opcode.
     void instruction_exception(unsigned vector);
+    /// The attempt at a word access to an odd address: 4 clocks with nothing
+    /// on the bus, then the instruction is abandoned (see AddressError).
+    [[noreturn]] void address_error(uint32_t address, FunctionCode function_code, bool read);
+    /// Records an (An)+ increment that an address error at `address` undoes.
+    void undo_postincrement_on_fault(unsigned reg, uint32_t address, uint32_t amount);
+    /// Group 0 exception processing for an address error: the seven-word
+    /// frame, vector 3 and the queue at the handler.
+    void address_error_exception(uint32_t address, FunctionCode function_code, bool read);
     /// Whether the interrupt level now on the IPL lines is to be taken.
     bool interrupt_due() const;
     /// Interrupt exception processing for the level on the IPL lines.
@@ -277,6 +293,21 @@ private:
     bool stopped_ = false;
     /// An instruction ran with T set; its trace exception is the next step.
     bool trace_pending_ = false;
+    /// The PC an address error stacks. The 68000 keeps its PC apart from the
+    /// address it prefetches from and moves it on at points of its own in
+    /// each instruction's microcode, so the stacked value is neither the
+    /// instruction's address nor PC. It starts 2 past the opcode, and the
+    /// instructions move it on as SingleStepTests shows the 68000 does.
+    uint32_t fault_pc_ = 0;
+    /// An (An)+ increment to take back if the access at `address` takes an
+    /// address error: the 68000 makes some only after the access.
+    struct PostincrementUndo {
+        bool pending;
+        unsigned reg;
+        uint32_t address;
+        uint32_t amount;
+    };
+    PostincrementUndo postincrement_undo_{};
     unsigned interrupt_level_ = 0;
     /// Level 7 has been taken since the lines last rose to it.
     bool level_7_taken_ = false;

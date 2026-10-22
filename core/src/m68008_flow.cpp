@@ -37,6 +37,9 @@ void M68008::bsr(uint16_t opcode) {
     uint32_t return_address = (opcode & 0xFF) == 0 ? regs_.pc : regs_.pc - 2;
     idle(2);
     push_long(return_address);
+    // An odd target faults with the target itself as the stacked PC
+    // (SingleStepTests).
+    fault_pc_ = target;
     refill_queue(target);
 }
 
@@ -51,13 +54,17 @@ void M68008::dbcc(uint16_t opcode) {
         prefetch();
         return;
     }
+    // The count is written back only once the target has been fetched: an
+    // odd target faults with Dn as it was, and stacks the PC past the
+    // displacement word (SingleStepTests).
     uint32_t& dn = regs_.d[opcode & 7];
     uint16_t count = static_cast<uint16_t>(dn - 1);
-    dn = (dn & 0xFFFF0000) | count;
     uint32_t target = regs_.pc - 2 + static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(regs_.irc)));
     idle(2);
+    fault_pc_ = regs_.pc;
     if (count != 0xFFFF) {
         refill_queue(target);
+        dn = (dn & 0xFFFF0000) | count;
         return;
     }
     // Run out: the manual gives 14(3/0) on the 68000, so three words are
@@ -66,6 +73,7 @@ void M68008::dbcc(uint16_t opcode) {
     // past the displacement word. SingleStepTests has no case to confirm the
     // order (m68008_flow_tests checks the time and the result).
     read_word(target, program_space());
+    dn = (dn & 0xFFFF0000) | count;
     refill_queue(regs_.pc);
 }
 
@@ -119,6 +127,9 @@ void M68008::jsr(uint16_t opcode) {
     // the target (SingleStepTests).
     uint32_t next;
     uint32_t target = jump_target((opcode >> 3) & 7, opcode & 7, next);
+    // An odd target faults with the return address as the stacked PC
+    // (SingleStepTests).
+    fault_pc_ = next;
     regs_.ir = read_word(target, program_space());
     push_long(next);
     regs_.irc = read_word(target + 2, program_space());
@@ -157,9 +168,13 @@ void M68008::link(uint16_t opcode) {
 void M68008::unlk(uint16_t opcode) {
     // UNLK An: 0100 1110 0101 1rrr. The stack pointer takes An, and An is
     // popped.
+    // The long is read through An before the stack pointer changes, so an
+    // odd An faults with the stack pointer as it was (SingleStepTests).
     unsigned n = opcode & 7;
-    address_register(7) = address_register(n);
-    uint32_t value = pop_long();
+    uint32_t address = address_register(n);
+    fault_pc_ = regs_.pc;
+    uint32_t value = read_memory(address, Size::Long, data_space());
+    address_register(7) = address + 4;
     address_register(n) = value;
     prefetch();
 }

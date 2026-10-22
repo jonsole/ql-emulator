@@ -13,6 +13,15 @@ Expected68008 derive_68008(const std::vector<Transaction>& transactions) {
             clock += t.cycles;
             continue;
         }
+        if (t.kind == Kind::ReadAddressError || t.kind == Kind::WriteAddressError) {
+            // The odd address is caught before the cycle starts, so nothing
+            // reaches the bus. The 68000 spends the transaction's 4 clocks on
+            // it; the 68008 is taken to spend the same, its check coming at
+            // the same point in the same microcode. There is no 68008 data to
+            // confirm it.
+            clock += t.cycles;
+            continue;
+        }
         // The even byte rides D8-D15, so it is the high half of the data bus.
         uint8_t even = static_cast<uint8_t>(t.data >> 8);
         uint8_t odd = static_cast<uint8_t>(t.data);

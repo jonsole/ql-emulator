@@ -115,11 +115,17 @@ void M68008::adda_suba(uint16_t opcode) {
 
 uint32_t M68008::read_predecrement_low_first(unsigned reg, Size size, uint32_t& address) {
     uint32_t& an = address_register(reg);
-    an -= step_size(reg, size);
-    address = an;
-    if (size != Size::Long) return read_memory(address, size, data_space());
+    address = an - step_size(reg, size);
+    if (size != Size::Long) {
+        an = address;
+        return read_memory(address, size, data_space());
+    }
+    // A long's decrement is made only once both words are read: an odd An
+    // faults on the low word with An as it was (SingleStepTests).
     uint32_t low = read_word(address + 2, data_space());
-    return static_cast<uint32_t>(read_word(address, data_space())) << 16 | low;
+    uint32_t value = static_cast<uint32_t>(read_word(address, data_space())) << 16 | low;
+    an = address;
+    return value;
 }
 
 void M68008::addx_subx(uint16_t opcode) {
@@ -139,6 +145,7 @@ void M68008::addx_subx(uint16_t opcode) {
     // read, a long low word first, then the result written low word first
     // with the prefetch between a long's two words (SingleStepTests).
     idle(2);
+    fault_pc_ += 2;
     uint32_t address;
     uint32_t source = read_predecrement_low_first(ry, size, address);
     uint32_t destination = read_predecrement_low_first(rx, size, address);
@@ -222,10 +229,19 @@ void M68008::cmpi(uint16_t opcode) {
 }
 
 void M68008::cmpm(uint16_t opcode) {
-    // CMPM (Ay)+,(Ax)+: 1011 xxx1 ss00 1yyy, the source read first.
+    // CMPM (Ay)+,(Ax)+: 1011 xxx1 ss00 1yyy, the source read first. Like
+    // -(An), it moves the fault PC on by 2 (SingleStepTests).
     Size size = size_field(opcode);
-    uint32_t source = read(resolve(3, opcode & 7, size), size);
-    uint32_t destination = read(resolve(3, (opcode >> 9) & 7, size), size);
+    fault_pc_ += 2;
+    // Ay moves on by a word before its read even for a long, and Ax only
+    // after its read: a fault on the source leaves Ay 2 on, one on the
+    // destination leaves Ax as it was (SingleStepTests).
+    Operand source_operand = resolve(3, opcode & 7, size);
+    if (size == Size::Long) undo_postincrement_on_fault(opcode & 7, source_operand.address, 2);
+    uint32_t source = read(source_operand, size);
+    Operand destination_operand = resolve(3, (opcode >> 9) & 7, size);
+    undo_postincrement_on_fault((opcode >> 9) & 7, destination_operand.address, step_size((opcode >> 9) & 7, size));
+    uint32_t destination = read(destination_operand, size);
     arithmetic(destination, source, size, true, false, false);
     prefetch();
 }

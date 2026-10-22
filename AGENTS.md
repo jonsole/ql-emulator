@@ -51,9 +51,17 @@ labelled slow. Run by hand, it takes file names (`m68000_suite.exe MOVE.b`) to
 run just those, and `--full`. The files it runs are the `FILES` list at its
 top, which names every file in the suite. Which instruction each opcode is
 comes from one table, `m68008_decode.cpp`; the routines are in a source file
-per group, which `m68008_internal.h` lists. Until ticket #10, tests that take
-an address error are set aside and counted apart. Without the fetched suite it
-exits 77, which CTest reports as skipped.
+per group, which `m68008_internal.h` lists. Every one of the suite's 317,500
+tests runs, address errors included; a change to the core is finished when the
+slow run still passes them all. Without the fetched suite it exits 77, which
+CTest reports as skipped.
+
+**Address errors are where the 68000's microcode shows most.** The stacked PC
+is `fault_pc_`, which each instruction moves on at its own points, and some
+instructions make their (An)+ and -(An) changes, and set their flags, only after
+the access that would fault. Each such rule was read off SingleStepTests and
+says so in a comment where it is applied; a change to an instruction's order of
+work has to keep them.
 
 **Expected values in tests are worked out, not captured**: cycle counts from
 the 68008's documented timings, results from what the instruction is defined

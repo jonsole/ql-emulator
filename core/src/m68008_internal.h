@@ -53,6 +53,7 @@ constexpr uint16_t SR_IMPLEMENTED = 0xA71F;
 
 /// Exception vector numbers, from the M68000 User's Manual's vector table. The
 /// vector's address is four times its number.
+constexpr unsigned VECTOR_ADDRESS_ERROR = 3;
 constexpr unsigned VECTOR_ILLEGAL = 4;
 constexpr unsigned VECTOR_DIVIDE_BY_ZERO = 5;
 constexpr unsigned VECTOR_CHK = 6;
@@ -64,6 +65,15 @@ constexpr unsigned VECTOR_LINE_F = 11;
 /// Autovector n, for interrupt level n (1-7), is 24 + n.
 constexpr unsigned VECTOR_AUTOVECTOR_0 = 24;
 constexpr unsigned VECTOR_TRAP_0 = 32;
+
+/// Thrown inside the core when a word or long access meets an odd address,
+/// and caught by M68008::step, which abandons the instruction there and
+/// stacks the group 0 frame. Never seen outside the core.
+struct AddressError {
+    uint32_t address;
+    FunctionCode function_code;
+    bool read;
+};
 
 /// The bits an operation of the given size works on.
 inline uint32_t size_mask(Size size) {
