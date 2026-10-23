@@ -55,4 +55,10 @@ add_dependencies(ql_tests m68000_suite)
 add_test(NAME m68000_sample COMMAND m68000_suite WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME m68000_full COMMAND m68000_suite --full WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_tests_properties(m68000_sample m68000_full PROPERTIES SKIP_RETURN_CODE 77)
+
+# The JS ROM's boot, which needs roms/js.rom: without it the test exits 77,
+# skipped.
+ql_add_test(js_rom_tests)
+target_compile_definitions(js_rom_tests PRIVATE ${QL_ROOT_DEFINE})
+set_tests_properties(js_rom_tests PROPERTIES SKIP_RETURN_CODE 77)
 set_tests_properties(m68000_full PROPERTIES LABELS slow)

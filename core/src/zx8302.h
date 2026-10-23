@@ -21,6 +21,14 @@ public:
     static constexpr uint8_t INT_TRANSMIT = 0x04;
     static constexpr uint8_t INT_FRAME = 0x08;
     static constexpr uint8_t INT_EXTERNAL = 0x10;
+    /// The interrupt register's mask bit for the gap interrupt (MAME's
+    /// MASK_GAP).
+    static constexpr uint8_t MASK_GAP = 0x20;
+    /// The status register's microdrive gap bit (MAME's
+    /// STATUS_MICRODRIVE_GAP). With no microdrives emulated it is always
+    /// set: MAME's ZX8302 starts with it set, and only a microdrive's gap
+    /// signal clears it.
+    static constexpr uint8_t STATUS_GAP = 0x08;
 
     /// The display's vertical sync: the frame interrupt.
     void vsync() { pending_ |= INT_FRAME; }
@@ -54,10 +62,10 @@ public:
     /// a transfer of one bit with the IPC; a 1 only releases the line, as the
     /// ROM's $01 at power-on does.
     void write_link(uint8_t value, IPC& ipc);
-    /// The status register, $18020, as far as the IPC link goes: bit 7 is the
-    /// last bit on COMDATA, bit 6 busy. The IPC answers each bit at once, so
-    /// busy never reads set.
-    uint8_t read_status() const { return static_cast<uint8_t>(comdata_ << 7); }
+    /// The status register, $18020: bit 7 is the last bit on COMDATA, bit 6
+    /// busy, bit 3 the microdrive gap. The IPC answers each bit at once, so
+    /// busy never reads set; with no microdrives the gap is always present.
+    uint8_t read_status() const { return static_cast<uint8_t>(comdata_ << 7 | STATUS_GAP); }
 
 private:
     uint8_t pending_ = 0;

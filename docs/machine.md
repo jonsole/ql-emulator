@@ -57,12 +57,18 @@ An interrupt stays pending, and IPL1L held, until it is cleared: a handler that 
 
 **The real-time clock**, `$18000`-`$18003`: a count of seconds since 1 January 1961, read most significant byte first. The server sets it from the host clock at power-on and at reset, converting from Unix time by adding 3,287 days (283,996,800 seconds), and it then advances one second per 7,500,000 clocks of emulated time, not the host's. Writes to it are ignored, as in MAME, for now.
 
-**The IPC link**: each write to `$18003` sends a bit to the IPC or listens for one, and `$18020` bit 7 is the bit on the line, bit 6 busy. [docs/ipc.md](ipc.md) describes the protocol and the IPC behind it. The rest of `$18020`, the microdrive and serial status, reads as 0.
+**The IPC link**: each write to `$18003` sends a bit to the IPC or listens for one, and `$18020` bit 7 is the bit on the line, bit 6 busy. [docs/ipc.md](ipc.md) describes the protocol and the IPC behind it.
 
-**Not yet:** the microdrives and the network; and the extra time the CPU's interrupt acknowledge takes to synchronise with the E clock, which waits for a source to cite (recorded on #21).
+**The microdrive gap**, with no microdrives: `$18020` bit 3, the gap, always reads 1, as in MAME, whose ZX8302 starts with it set and leaves it to a microdrive to clear. The gap interrupt is raised whenever its mask bit (bit 5 of `$18021`) is set, and again each time it is acknowledged while the mask stays set ("The gap interrupt regenerates as long as the gap level is present and the mask is enabled. Minerva relies on this.", MAME's `irq_acknowledge_w`). That is what lets the JS ROM boot without a cartridge: its microdrive driver, looking in `mdv1_` for a BOOT file, waits on the gap interrupt; finding the gap but never a sector header (`$5448` gives up after 65,536 tries), it reports "not found", and SuperBASIC starts. The rest of `$18020`, the microdrive and serial status, reads as 0.
+
+**Not yet:** the microdrives themselves (Stage 5) and the network; and the extra time the CPU's interrupt acknowledge takes to synchronise with the E clock, which waits for a source to cite (recorded on #21).
 
 ## Running
 
 The machine runs at 7.5 MHz in frames of 150,000 clocks, 50 a second. Frames are counted from power-on: frame k ends at k × 150,000 clocks, and running a number of frames runs whole instructions until the end of the last of them, so an instruction that runs over a frame's end does not move the frames after it.
 
 Power-on and the reset button both run the 68008's reset sequence, which reads the stack pointer and the PC from the ROM's first eight bytes.
+
+## Booting the JS ROM
+
+The JS ROM boots as on a QL with no cartridge. From reset it tests and clears RAM, puts the display in mode 8 and asks for F1 (monitor) or F2 (TV). F1 gives mode 4 and SuperBASIC's three monitor windows, a try for BOOT on `mdv1_` that fails "not found", and the prompt in `#0`. `js_rom_tests` checks this end to end: it reads the F1/F2 message off the screen, presses F1, types `print 7*6` and finds `42` in `#1`. It reads every window's place and colours from the ROM's own window table (`$4B72`), and every character with the ROM's own font (`$AD9A`). It needs `roms/js.rom` and skips without it. F2, the TV windows, has not been tried.

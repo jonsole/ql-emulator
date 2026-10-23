@@ -122,4 +122,30 @@ TEST(the_real_time_clock_counts_seconds_in_emulated_time) {
     CHECK_EQ(ql::rtc_from_unix(1'700'000'000), uint32_t{1'983'996'800});
 }
 
+// With no microdrives, the microdrive gap is always present, as in MAME, whose
+// ZX8302 starts with it set and has nothing to clear it: status bit 3 at
+// $18020 reads 1. The gap interrupt, bit 0 of $18021, is raised as soon as its
+// mask bit, 5, is set, and again whenever it is acknowledged while the mask
+// stays set ("The gap interrupt regenerates as long as the gap level is
+// present and the mask is enabled. Minerva relies on this.", MAME's
+// irq_acknowledge_w). Acknowledged with the mask cleared, it goes.
+TEST(with_no_microdrives_the_gap_is_always_present) {
+    ql::QL machine(rom_running({0x60FE}), 128);   // BRA.S *
+    machine.reset();
+    auto read = [&machine](uint32_t address) {
+        return machine.read(ql::BusCycle{address, ql::FunctionCode::SupervisorData, 0});
+    };
+    auto write = [&machine](uint32_t address, uint8_t value) {
+        machine.write(ql::BusCycle{address, ql::FunctionCode::SupervisorData, 0}, value);
+    };
+    CHECK_EQ(read(0x18020) & 0x08, 0x08);
+    CHECK_EQ(read(0x18021), uint8_t{0x00});
+    write(0x18021, 0x20);
+    CHECK_EQ(read(0x18021), uint8_t{0x01});
+    write(0x18021, 0x21);
+    CHECK_EQ(read(0x18021), uint8_t{0x01});
+    write(0x18021, 0x01);
+    CHECK_EQ(read(0x18021), uint8_t{0x00});
+}
+
 RUN_TESTS()

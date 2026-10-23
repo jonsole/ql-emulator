@@ -7,6 +7,13 @@ void ZX8302::write_interrupt(uint8_t value) {
     // set in 4-0 cleared. IPL1L follows from what is left pending.
     mask_ = value & 0xE0;
     pending_ = static_cast<uint8_t>(pending_ & ~(value & 0x1F));
+    // The gap interrupt comes back while the gap is present and its mask is
+    // on: "The gap interrupt regenerates as long as the gap level is present
+    // and the mask is enabled. Minerva relies on this." With no microdrives
+    // the gap is always present, so the JS ROM's microdrive driver, which
+    // enables it to look for a cartridge, finds none and gives up: it reads
+    // no sector header ($5448 times out) and the open fails, "not found".
+    if (mask_ & MASK_GAP) pending_ |= INT_GAP;
 }
 
 uint8_t ZX8302::read_rtc(unsigned offset, uint64_t clock) const {
